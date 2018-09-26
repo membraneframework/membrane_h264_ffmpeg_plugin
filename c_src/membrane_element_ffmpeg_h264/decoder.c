@@ -99,7 +99,7 @@ UNIFEX_TERM decode_frame(UnifexEnv* env, UnifexPayload * payload, State* state) 
   int ret;
 
   uint8_t * data_ptr = payload->data;
-  size_t data_left = payload->size;
+  size_t data_left = old_size;
 
   while (data_left > 0) {
     ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &pkt->data, &pkt->size,
@@ -116,13 +116,13 @@ UNIFEX_TERM decode_frame(UnifexEnv* env, UnifexPayload * payload, State* state) 
     data_ptr += ret;
     data_left -= ret;
 
-    ret = avcodec_send_packet(state->codec_ctx, pkt);
-    if (ret < 0) {
-      res_term = decode_frame_result_error(env, "send_pkt");
-      goto exit_decode;
-    }
-
     if (pkt->size > 0) {
+      ret = avcodec_send_packet(state->codec_ctx, pkt);
+      if (ret < 0) {
+        res_term = decode_frame_result_error(env, "send_pkt");
+        goto exit_decode;
+      }
+
       ret = get_frames(env, frame, payload->type, out_payloads + payload_cnt, state);
       if (ret < 0) {
         res_term = decode_frame_result_error(env, "decode");

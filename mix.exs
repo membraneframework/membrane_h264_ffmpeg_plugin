@@ -52,7 +52,7 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
       {:ex_doc, "~> 0.19.0", only: :dev, runtime: false},
       {:membrane_core, github: "membraneframework/membrane-core"},
       {:bundlex, "~> 0.1.3"},
-      {:unifex, "~> 0.1.0", github: "membraneframework/unifex"},
+      {:unifex, "~> 0.1.0", github: "membraneframework/unifex", branch: "feature/add-base-types"},
       {:bunch, github: "membraneframework/bunch", override: true}
     ]
   end
