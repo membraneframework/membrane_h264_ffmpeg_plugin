@@ -14,3 +14,6 @@ typedef struct _h264_decoder_state {
 typedef UnifexNifState State;
 
 #include "_generated/decoder.h"
+
+#define DECODER_SEND_PKT_ERROR -1
+#define DECODER_DECODE_ERROR -2
