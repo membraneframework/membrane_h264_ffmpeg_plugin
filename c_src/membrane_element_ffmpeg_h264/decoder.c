@@ -25,20 +25,11 @@ UNIFEX_TERM create(UnifexEnv *env) {
     goto exit_create;
   }
 
-  state->parser_ctx = av_parser_init(state->codec->id);
-  if (!state->parser_ctx) {
-    res = create_result_error(env, "noparser");
-    goto exit_create;
-  }
-
   state->codec_ctx = avcodec_alloc_context3(state->codec);
   if (!state->codec_ctx) {
     res = create_result_error(env, "codec_alloc");
     goto exit_create;
   }
-  state->codec_ctx->width = 1280;
-  state->codec_ctx->height = 720;
-  state->codec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
 
   if(avcodec_open2(state->codec_ctx, state->codec, NULL) < 0) {
     res = create_result_error(env, "codec_open");
