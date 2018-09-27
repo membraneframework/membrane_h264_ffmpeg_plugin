@@ -51,93 +51,124 @@ exit_create:
   return res;
 }
 
-int get_frames(UnifexEnv * env, AVFrame * frame, UnifexPayloadType payload_type, UnifexPayload * out_payloads[], State* state) {
-  int ret = 0;
-  int payload_cnt = 0;
+UNIFEX_TERM decode(UnifexEnv* env, UnifexPayload * payload, State* state) {
+  UNIFEX_TERM res_term;
+  AVPacket * pkt = NULL;
+  AVFrame * frame = NULL;
+  size_t max_frames = 16, frame_cnt = 0;
+  UnifexPayload ** out_frames = unifex_alloc(max_frames * sizeof(*out_frames));
+
+  pkt = av_packet_alloc();
+  av_init_packet(pkt);
+  pkt->data = payload->data;
+  pkt->size = payload->size;
+
+  frame = av_frame_alloc();
+
+  int ret;
+
+  if (pkt->size > 0) {
+    ret = avcodec_send_packet(state->codec_ctx, pkt);
+    if (ret < 0) {
+      res_term = decode_result_error(env, "send_pkt");
+      goto exit_decode;
+    }
+
+    while(1) {
+      ret = avcodec_receive_frame(state->codec_ctx, frame);
+
+      if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+        break;
+      }
+
+      if (ret < 0) {
+        res_term = decode_result_error(env, "decode");
+        goto exit_decode;
+      }
+
+      if (frame_cnt >= max_frames) {
+        max_frames *= 2;
+        out_frames = unifex_realloc(out_frames, max_frames * sizeof(*out_frames));
+      }
+
+      size_t payload_size = av_image_get_buffer_size(state->codec_ctx->pix_fmt, frame->width, frame->height, 1);
+      out_frames[frame_cnt] = unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, payload_size);
+      av_image_copy_to_buffer(
+          out_frames[frame_cnt]->data,
+          payload_size,
+          (const uint8_t* const *) frame->data,
+          (const int*) frame->linesize,
+          state->codec_ctx->pix_fmt,
+          frame->width,
+          frame->height,
+          1
+          );
+      frame_cnt++;
+    }
+  }
+
+  res_term = decode_result_ok(env, out_frames, frame_cnt);
+exit_decode:
+  for(size_t i = 0; i < frame_cnt; i++) {
+    unifex_payload_release(out_frames[i]);
+  }
+  av_frame_free(&frame);
+  av_packet_free(&pkt);
+  return res_term;
+}
+
+UNIFEX_TERM flush(UnifexEnv* env, State* state) {
+  int ret;
+  UNIFEX_TERM res_term;
+  AVFrame * frame = NULL;
+  size_t max_frames = 8, frame_cnt = 0;
+  UnifexPayload ** out_frames = unifex_alloc(max_frames * sizeof(*out_frames));
+
+  frame = av_frame_alloc();
+
+  ret = avcodec_send_packet(state->codec_ctx, NULL);
+  if (ret < 0) {
+    res_term = flush_result_error(env, "send_pkt");
+    goto exit_flush;
+  }
+
   while(1) {
     ret = avcodec_receive_frame(state->codec_ctx, frame);
 
-    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-      return payload_cnt;
+    if (ret == AVERROR_EOF) {
+      break;
     }
 
     if (ret < 0) {
-      return ret;
+      res_term = flush_result_error(env, "decode");
+      goto exit_flush;
     }
 
-    size_t payload_size = av_image_get_buffer_size(state->codec_ctx->pix_fmt, frame->width, frame->height, 16);
-    out_payloads[payload_cnt] = unifex_payload_alloc(env, payload_type, payload_size);
+    if (frame_cnt >= max_frames) {
+      max_frames *= 2;
+      out_frames = unifex_realloc(out_frames, max_frames * sizeof(*out_frames));
+    }
+
+    size_t payload_size = av_image_get_buffer_size(state->codec_ctx->pix_fmt, frame->width, frame->height, 1);
+    out_frames[frame_cnt] = unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, payload_size);
     av_image_copy_to_buffer(
-        out_payloads[payload_cnt]->data,
+        out_frames[frame_cnt]->data,
         payload_size,
         (const uint8_t* const *) frame->data,
         (const int*) frame->linesize,
         state->codec_ctx->pix_fmt,
         frame->width,
         frame->height,
-        16
+        1
         );
-    payload_cnt++;
-  }
-}
-
-UNIFEX_TERM decode_frame(UnifexEnv* env, UnifexPayload * payload, State* state) {
-  UNIFEX_TERM res_term;
-  AVPacket * pkt = NULL;
-  AVFrame * frame = NULL;
-  size_t old_size = payload->size;
-  static const size_t MAX_PAYLOADS = 100;
-  UnifexPayload * out_payloads[MAX_PAYLOADS];
-  size_t payload_cnt = 0;
-  unifex_payload_realloc(payload, old_size + AV_INPUT_BUFFER_PADDING_SIZE);
-  memset(payload->data + old_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
-
-  pkt = av_packet_alloc();
-  av_init_packet(pkt);
-  frame = av_frame_alloc();
-
-  int ret;
-
-  uint8_t * data_ptr = payload->data;
-  size_t data_left = old_size;
-
-  while (data_left > 0) {
-    ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &pkt->data, &pkt->size,
-                           data_ptr, data_left, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
-    if (ret < 0) {
-      res_term = decode_frame_result_error(env, "parsing");
-      goto exit_decode;
-    }
-    if (ret == 0) {
-      res_term = decode_frame_result_error(env, "buflen");
-      goto exit_decode;
-    }
-
-    data_ptr += ret;
-    data_left -= ret;
-
-    if (pkt->size > 0) {
-      ret = avcodec_send_packet(state->codec_ctx, pkt);
-      if (ret < 0) {
-        res_term = decode_frame_result_error(env, "send_pkt");
-        goto exit_decode;
-      }
-
-      ret = get_frames(env, frame, payload->type, out_payloads + payload_cnt, state);
-      if (ret < 0) {
-        res_term = decode_frame_result_error(env, "decode");
-        goto exit_decode;
-      }
-      payload_cnt += ret;
-    }
+    frame_cnt++;
   }
 
-  res_term = decode_frame_result_ok(env, out_payloads, payload_cnt);
-exit_decode:
-  for(size_t i = 0; i < payload_cnt; i++) {
-    unifex_payload_release(out_payloads[i]);
+  res_term = flush_result_ok(env, out_frames, frame_cnt);
+exit_flush:
+  for(size_t i = 0; i < frame_cnt; i++) {
+    unifex_payload_release(out_frames[i]);
   }
   av_frame_free(&frame);
-  av_packet_free(&pkt);
   return res_term;
 }

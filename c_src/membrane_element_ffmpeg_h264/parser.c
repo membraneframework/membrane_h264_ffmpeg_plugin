@@ -48,7 +48,7 @@ exit_create:
   return res;
 }
 
-UNIFEX_TERM parse_frames(UnifexEnv* env, UnifexPayload * payload, State* state) {
+UNIFEX_TERM parse(UnifexEnv* env, UnifexPayload * payload, State* state) {
   UNIFEX_TERM res_term;
   size_t max_frames = 32, frames_cnt = 0;
   unsigned * out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
@@ -70,29 +70,46 @@ UNIFEX_TERM parse_frames(UnifexEnv* env, UnifexPayload * payload, State* state) 
     ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &pkt->data, &pkt->size,
                            data_ptr, data_left, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
     if (ret < 0) {
-      res_term = parse_frames_result_error(env, "parsing");
+      res_term = parse_result_error(env, "parsing");
       goto exit_parse_frames;
-    }
-    if (ret == 0) {
-      break;
     }
 
     data_ptr += ret;
     data_left -= ret;
 
-    if (frames_cnt >= max_frames) {
-      max_frames *= 2;
-      out_frame_sizes = unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
-    }
+    if (pkt->size > 0) {
+      if (frames_cnt >= max_frames) {
+        max_frames *= 2;
+        out_frame_sizes = unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
+      }
 
-    out_frame_sizes[frames_cnt] = pkt->size;
-    frames_cnt++;
+      out_frame_sizes[frames_cnt] = pkt->size;
+      frames_cnt++;
+    }
   }
 
-  res_term = parse_frames_result_ok(env, out_frame_sizes, frames_cnt, old_size - data_left);
+  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt, old_size - data_left);
 exit_parse_frames:
   unifex_free(out_frame_sizes);
   av_packet_free(&pkt);
   unifex_payload_realloc(payload, old_size);
   return res_term;
+}
+
+UNIFEX_TERM flush(UnifexEnv* env, UnifexNifState* state) {
+  int ret;
+  uint8_t * data_ptr;
+  unsigned out_frame_size;
+  ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &data_ptr, (int *) &out_frame_size,
+      NULL, 0, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+
+  if (ret < 0) {
+    return parse_result_error(env, "parsing");
+  }
+
+  if (out_frame_size == 0) {
+    return flush_result_ok(env, NULL, 0);
+  }
+
+  return flush_result_ok(env, &out_frame_size, 1);
 }
