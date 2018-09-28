@@ -1,4 +1,4 @@
-module Membrane.Element.FFmpeg.H264.Decoder
+module Membrane.Element.FFmpeg.H264.Decoder.Native
 
 spec create() :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
