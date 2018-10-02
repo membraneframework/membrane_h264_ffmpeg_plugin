@@ -4,7 +4,7 @@
 
 This package provides [Membrane Multimedia Framework](https://membraneframework.org)
 elements that can be used to encode and decode H264 video streams using [ffmpeg](https://www.ffmpeg.org)
-and [libvpx](https://www.webmproject.org/code/)
+and [x264](https://www.videolan.org/developers/x264.html)
 
 Documentation is available at [HexDocs](https://hexdocs.pm/membrane_element_ffmpeg_h264/)
 

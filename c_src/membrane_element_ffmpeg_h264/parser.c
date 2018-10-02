@@ -50,18 +50,22 @@ exit_create:
 
 UNIFEX_TERM parse(UnifexEnv* env, UnifexPayload * payload, State* state) {
   UNIFEX_TERM res_term;
+  int ret;
   size_t max_frames = 32, frames_cnt = 0;
   unsigned * out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
 
   AVPacket * pkt = NULL;
   size_t old_size = payload->size;
-  unifex_payload_realloc(payload, old_size + AV_INPUT_BUFFER_PADDING_SIZE);
+  ret = unifex_payload_realloc(payload, old_size + AV_INPUT_BUFFER_PADDING_SIZE);
+  if (!ret) {
+    res_term = parse_result_error(env, "realloc");
+    goto exit_parse_frames;
+  }
+
   memset(payload->data + old_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 
   pkt = av_packet_alloc();
   av_init_packet(pkt);
-
-  int ret;
 
   uint8_t * data_ptr = payload->data;
   size_t data_left = old_size;

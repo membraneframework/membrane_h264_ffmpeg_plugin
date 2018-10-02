@@ -18,13 +18,13 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
 
   @impl true
   def handle_init(_) do
-    %{decoder_ref: nil}
+    {:ok, %{decoder_ref: nil}}
   end
 
   @impl true
   def handle_stopped_to_prepared(_, state) do
     with {:ok, decoder_ref} <- Native.create() do
-      {:ok, %{decoder_ref: decoder_ref}}
+      {:ok, %{state | decoder_ref: decoder_ref}}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -51,10 +51,14 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   def handle_event(:input, %EndOfStream{}, _ctx, state) do
     with {:ok, frames} <- Native.flush(state.decoder_ref),
          bufs <- wrap_frames(frames) do
-      {{:ok, bufs}, state}
+      {{:ok, bufs ++ [event: {:output, %EndOfStream{}}]}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
+  end
+
+  def handle_event(:input, event, _ctx, state) do
+    {{:ok, event: {:output, event}}, state}
   end
 
   @impl true

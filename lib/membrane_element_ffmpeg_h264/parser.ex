@@ -5,7 +5,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   alias Membrane.Event.EndOfStream
 
   def_input_pads input: [
-                   demand_unit: :bytes,
+                   demand_unit: :buffers,
                    caps: :any
                  ]
 
@@ -16,21 +16,21 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   @impl true
   def handle_init(_) do
-    %{parser_ref: nil, partial_frame: "", unparsed: ""}
+    {:ok, %{parser_ref: nil, partial_frame: "", unparsed: ""}}
   end
 
   @impl true
   def handle_stopped_to_prepared(_, state) do
     with {:ok, parser_ref} <- Native.create() do
-      {:ok, %{parser_ref: parser_ref}}
+      {:ok, %{state | parser_ref: parser_ref}}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
   end
 
   @impl true
-  def handle_demand(:output, size, :bytes, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
+  def handle_demand(:output, _size, :buffers, _ctx, state) do
+    {{:ok, demand: :input}, state}
   end
 
   @impl true
@@ -61,6 +61,10 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
       state = %{state | partial_frame: ""}
       {{:ok, buffer: {:output, bufs}, event: {:output, %EndOfStream{}}}, state}
     end
+  end
+
+  def handle_event(:input, event, _ctx, state) do
+    {{:ok, event: {:output, event}}, state}
   end
 
   @impl true
