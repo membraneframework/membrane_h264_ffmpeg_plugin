@@ -19,6 +19,9 @@ UNIFEX_TERM create(UnifexEnv *env) {
   state->codec_ctx = NULL;
   state->parser_ctx = NULL;
 
+#if (LIBAVCODEC_VERSION_MAJOR < 58)
+  avcodec_register_all();
+#endif
   state->codec = avcodec_find_decoder(AV_CODEC_ID_H264);
   if (!state->codec) {
     res = create_result_error(env, "nocodec");
