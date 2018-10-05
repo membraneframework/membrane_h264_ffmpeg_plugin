@@ -3,20 +3,30 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Event.EndOfStream
+  alias Membrane.Caps.Video.H264
+  use Membrane.Log
 
   def_input_pads input: [
                    demand_unit: :buffers,
-                   caps: :any
+                   caps: {H264, stream_format: :byte_stream}
                  ]
 
   def_output_pads output: [
-                    # TODO: add h264 caps
-                    caps: :any
+                    caps: {H264, stream_format: :byte_stream, alignment: :au}
                   ]
 
+  def_options framerate: [
+                type: :framerate,
+                spec: H264.framerate_t(),
+                default: {0, 1},
+                description: """
+                Framerate of video stream, see `t:Membrane.Caps.Video.H264.framerate_t/0`
+                """
+              ]
+
   @impl true
-  def handle_init(_) do
-    {:ok, %{parser_ref: nil, partial_frame: "", unparsed: ""}}
+  def handle_init(opts) do
+    {:ok, opts |> Map.merge(%{parser_ref: nil, partial_frame: ""})}
   end
 
   @impl true
@@ -34,15 +44,33 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: payload}, _, state) do
-    # TODO: Check if 'unparsed' is needed
-    %{parser_ref: parser_ref, partial_frame: partial_frame, unparsed: unparsed} = state
+  def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
+    %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes, consumed_bytes} <- Native.parse(unparsed <> payload, parser_ref),
+    with {:ok, sizes} <- Native.parse(payload, parser_ref),
          {bufs, rest} <- gen_bufs_by_sizes(partial_frame <> payload, sizes) do
-      <<_::bytes-size(consumed_bytes), unparsed::binary>> = payload
-      state = %{state | partial_frame: rest, unparsed: unparsed}
-      {{:ok, buffer: {:output, bufs}, redemand: :output}, state}
+      state = %{state | partial_frame: rest}
+      actions = [buffer: {:output, bufs}, redemand: :output]
+
+      actions =
+        if ctx.caps.(:output) == nil and bufs != [] do
+          {:ok, width, height, profile} = Native.get_parsed_meta(parser_ref)
+
+          caps = %H264{
+            width: width,
+            height: height,
+            framerate: state.framerate,
+            alignment: :au,
+            stream_format: :byte_stream,
+            profile: profile
+          }
+
+          [{:caps, {:output, caps}} | actions]
+        else
+          actions
+        end
+
+      {{:ok, actions}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -55,7 +83,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     with {:ok, sizes} <- Native.flush(parser_ref),
          {bufs, rest} <- gen_bufs_by_sizes(partial_frame, sizes) do
       if rest != "" do
-        # warn
+        warn("Discarding incomplete frame because of EndOfStream")
       end
 
       state = %{state | partial_frame: ""}

@@ -92,12 +92,53 @@ UNIFEX_TERM parse(UnifexEnv* env, UnifexPayload * payload, State* state) {
     }
   }
 
-  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt, old_size - data_left);
+  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt);
 exit_parse_frames:
   unifex_free(out_frame_sizes);
   av_packet_free(&pkt);
   unifex_payload_realloc(payload, old_size);
   return res_term;
+}
+
+UNIFEX_TERM get_parsed_meta(UnifexEnv* env, UnifexNifState* state) {
+  char * profile_atom;
+
+  switch (state->codec_ctx->profile) {
+  case FF_PROFILE_H264_CONSTRAINED_BASELINE:
+    profile_atom = "constrained_baseline";
+    break;
+  case FF_PROFILE_H264_BASELINE:
+    profile_atom = "baseline";
+    break;
+  case FF_PROFILE_H264_MAIN:
+    profile_atom = "main";
+    break;
+  case FF_PROFILE_H264_HIGH:
+    profile_atom = "high";
+    break;
+  case FF_PROFILE_H264_HIGH_10:
+    profile_atom = "high_10";
+    break;
+  case FF_PROFILE_H264_HIGH_422:
+    profile_atom = "high_422";
+    break;
+  case FF_PROFILE_H264_HIGH_444:
+    profile_atom = "high_444";
+    break;
+  case FF_PROFILE_H264_HIGH_10_INTRA:
+    profile_atom = "high_10_intra";
+    break;
+  case FF_PROFILE_H264_HIGH_422_INTRA:
+    profile_atom = "high_422_intra";
+    break;
+  case FF_PROFILE_H264_HIGH_444_INTRA:
+    profile_atom = "high_444_intra";
+    break;
+  default:
+    profile_atom = "unknown";
+  }
+
+  return get_parsed_meta_result_ok(env, state->parser_ctx->coded_width, state->parser_ctx->coded_height, profile_atom);
 }
 
 UNIFEX_TERM flush(UnifexEnv* env, UnifexNifState* state) {

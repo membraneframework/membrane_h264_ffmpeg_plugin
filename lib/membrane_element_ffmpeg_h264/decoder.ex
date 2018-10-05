@@ -3,17 +3,16 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Event.EndOfStream
+  alias Membrane.Caps.Video.{H264, Raw}
   use Bunch
 
   def_input_pads input: [
                    demand_unit: :buffers,
-                   # TODO: add h264 caps
-                   caps: :any
+                   caps: {H264, stream_format: :byte_stream, alignment: :au}
                  ]
 
   def_output_pads output: [
-                    # TODO: add h264 caps
-                    caps: :any
+                    caps: {Raw, format: :I420, aligned: true}
                   ]
 
   @impl true
@@ -45,6 +44,11 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
     else
       {:error, reason} -> {{:error, reason}, state}
     end
+  end
+
+  @impl true
+  def handle_caps(:input, _caps, _ctx, state) do
+    {:ok, state}
   end
 
   @impl true
