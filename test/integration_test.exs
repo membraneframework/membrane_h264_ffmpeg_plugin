@@ -1,37 +1,4 @@
-defmodule IntegrationTest.TestingPipeline.H264 do
-  use Membrane.Pipeline
-  alias Membrane.Element
-
-  def handle_init(%{in: in_path, out: out_path, pid: pid}) do
-    children = [
-      file_src: %Element.File.Source{chunk_size: 40_960, location: in_path},
-      parser: Element.FFmpeg.H264.Parser,
-      decoder: Element.FFmpeg.H264.Decoder,
-      sink: %Element.File.Sink{location: out_path}
-    ]
-
-    links = %{
-      {:file_src, :output} => {:parser, :input},
-      {:parser, :output} => {:decoder, :input},
-      {:decoder, :output} => {:sink, :input}
-    }
-
-    spec = %Membrane.Pipeline.Spec{
-      children: children,
-      links: links
-    }
-
-    {{:ok, spec}, %{pid: pid}}
-  end
-
-  def handle_message(%Membrane.Message{type: :end_of_stream}, _name, %{pid: pid} = state) do
-    send(pid, :eos)
-    {:ok, state}
-  end
-end
-
 defmodule IntegrationTest do
-  alias __MODULE__.TestingPipeline.H264
   alias Membrane.Pipeline
   use ExUnit.Case
 
@@ -51,7 +18,10 @@ defmodule IntegrationTest do
 
   test "decode 10 720p frames" do
     {in_path, ref_path, out_path} = prepare_paths("10-720p")
-    {:ok, pid} = Pipeline.start_link(H264, %{in: in_path, out: out_path, pid: self()}, [])
+
+    {:ok, pid} =
+      Pipeline.start_link(DecodingPipeline, %{in: in_path, out: out_path, pid: self()}, [])
+
     assert Pipeline.play(pid) == :ok
     assert_receive :eos, 500
     assert_files_equal(out_path, ref_path)
@@ -59,7 +29,10 @@ defmodule IntegrationTest do
 
   test "decode 100 240p frames" do
     {in_path, ref_path, out_path} = prepare_paths("100-240p")
-    {:ok, pid} = Pipeline.start_link(H264, %{in: in_path, out: out_path, pid: self()}, [])
+
+    {:ok, pid} =
+      Pipeline.start_link(DecodingPipeline, %{in: in_path, out: out_path, pid: self()}, [])
+
     assert Pipeline.play(pid) == :ok
     assert_receive :eos, 1000
     assert_files_equal(out_path, ref_path)

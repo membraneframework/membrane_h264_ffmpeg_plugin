@@ -10,6 +10,7 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
       elixir: "~> 1.7",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       description: "Membrane Multimedia Framework (FFmpeg H264 Element)",
       package: package(),
@@ -27,7 +28,10 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
     ]
   end
 
-  def docs do
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_env), do: ["lib"]
+
+  defp docs do
     [
       main: "readme",
       extras: ["README.md"],
