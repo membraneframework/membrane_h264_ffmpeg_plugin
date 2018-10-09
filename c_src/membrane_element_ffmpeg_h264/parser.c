@@ -1,6 +1,6 @@
 #include "parser.h"
 
-void handle_destroy_state(UnifexEnv * env, State * state) {
+void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
 
   if (state->parser_ctx != NULL) {
@@ -14,7 +14,7 @@ void handle_destroy_state(UnifexEnv * env, State * state) {
 
 UNIFEX_TERM create(UnifexEnv *env) {
   UNIFEX_TERM res;
-  State * state = unifex_alloc_state(env);
+  State *state = unifex_alloc_state(env);
   state->codec = NULL;
   state->codec_ctx = NULL;
   state->parser_ctx = NULL;
@@ -37,7 +37,7 @@ UNIFEX_TERM create(UnifexEnv *env) {
     goto exit_create;
   }
 
-  if(avcodec_open2(state->codec_ctx, state->codec, NULL) < 0) {
+  if (avcodec_open2(state->codec_ctx, state->codec, NULL) < 0) {
     res = create_result_error(env, "codec_open");
     goto exit_create;
   }
@@ -48,15 +48,16 @@ exit_create:
   return res;
 }
 
-UNIFEX_TERM parse(UnifexEnv* env, UnifexPayload * payload, State* state) {
+UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   UNIFEX_TERM res_term;
   int ret;
   size_t max_frames = 32, frames_cnt = 0;
-  unsigned * out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
+  unsigned *out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
 
-  AVPacket * pkt = NULL;
+  AVPacket *pkt = NULL;
   size_t old_size = payload->size;
-  ret = unifex_payload_realloc(payload, old_size + AV_INPUT_BUFFER_PADDING_SIZE);
+  ret =
+      unifex_payload_realloc(payload, old_size + AV_INPUT_BUFFER_PADDING_SIZE);
   if (!ret) {
     res_term = parse_result_error(env, "realloc");
     goto exit_parse_frames;
@@ -67,12 +68,13 @@ UNIFEX_TERM parse(UnifexEnv* env, UnifexPayload * payload, State* state) {
   pkt = av_packet_alloc();
   av_init_packet(pkt);
 
-  uint8_t * data_ptr = payload->data;
+  uint8_t *data_ptr = payload->data;
   size_t data_left = old_size;
 
   while (data_left > 0) {
-    ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &pkt->data, &pkt->size,
-                           data_ptr, data_left, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+    ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &pkt->data,
+                           &pkt->size, data_ptr, data_left, AV_NOPTS_VALUE,
+                           AV_NOPTS_VALUE, 0);
     if (ret < 0) {
       res_term = parse_result_error(env, "parsing");
       goto exit_parse_frames;
@@ -84,7 +86,8 @@ UNIFEX_TERM parse(UnifexEnv* env, UnifexPayload * payload, State* state) {
     if (pkt->size > 0) {
       if (frames_cnt >= max_frames) {
         max_frames *= 2;
-        out_frame_sizes = unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
+        out_frame_sizes =
+            unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
       }
 
       out_frame_sizes[frames_cnt] = pkt->size;
@@ -100,8 +103,8 @@ exit_parse_frames:
   return res_term;
 }
 
-UNIFEX_TERM get_parsed_meta(UnifexEnv* env, UnifexNifState* state) {
-  char * profile_atom;
+UNIFEX_TERM get_parsed_meta(UnifexEnv *env, UnifexNifState *state) {
+  char *profile_atom;
 
   switch (state->codec_ctx->profile) {
   case FF_PROFILE_H264_CONSTRAINED_BASELINE:
@@ -138,15 +141,18 @@ UNIFEX_TERM get_parsed_meta(UnifexEnv* env, UnifexNifState* state) {
     profile_atom = "unknown";
   }
 
-  return get_parsed_meta_result_ok(env, state->parser_ctx->coded_width, state->parser_ctx->coded_height, profile_atom);
+  return get_parsed_meta_result_ok(env, state->parser_ctx->coded_width,
+                                   state->parser_ctx->coded_height,
+                                   profile_atom);
 }
 
-UNIFEX_TERM flush(UnifexEnv* env, UnifexNifState* state) {
+UNIFEX_TERM flush(UnifexEnv *env, UnifexNifState *state) {
   int ret;
-  uint8_t * data_ptr;
+  uint8_t *data_ptr;
   unsigned out_frame_size;
-  ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &data_ptr, (int *) &out_frame_size,
-      NULL, 0, AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
+  ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &data_ptr,
+                         (int *)&out_frame_size, NULL, 0, AV_NOPTS_VALUE,
+                         AV_NOPTS_VALUE, 0);
 
   if (ret < 0) {
     return parse_result_error(env, "parsing");
