@@ -35,12 +35,16 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: payload}, _, state) do
+  def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
     %{decoder_ref: decoder_ref} = state
 
     with {:ok, frames} <- Native.decode(payload, decoder_ref),
-         bufs <- wrap_frames(frames) do
-      {{:ok, bufs ++ [redemand: :output]}, state}
+         bufs <- wrap_frames(frames),
+         in_caps <- ctx.caps.(:input),
+         out_caps <- ctx.caps.(:output),
+         {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
+      actions = Enum.concat([caps, bufs, [redemand: :output]])
+      {{:ok, actions}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -48,6 +52,7 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
 
   @impl true
   def handle_caps(:input, _caps, _ctx, state) do
+    # ignoring caps, new ones will be generated from decoder metadata
     {:ok, state}
   end
 
@@ -75,4 +80,26 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   defp wrap_frames(frames) do
     frames |> Enum.map(fn frame -> %Buffer{payload: frame} end) ~> [buffer: {:output, &1}]
   end
+
+  defp get_caps_if_needed(input_caps, nil, decoder_ref) do
+    with {:ok, width, height, pix_fmt} <- Native.get_metadata(decoder_ref) do
+      framerate =
+        case input_caps do
+          nil -> {0, 1}
+          %H264{framerate: in_framerate} -> in_framerate
+        end
+
+      caps = %Raw{
+        aligned: true,
+        format: pix_fmt,
+        framerate: framerate,
+        height: height,
+        width: width
+      }
+
+      {:ok, caps: {:output, caps}}
+    end
+  end
+
+  defp get_caps_if_needed(_, _, _), do: {:ok, []}
 end
