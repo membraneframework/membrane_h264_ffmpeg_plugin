@@ -6,9 +6,7 @@
 #include <libavutil/opt.h>
 
 typedef struct _h264_decoder_state {
-  AVCodec *codec;
   AVCodecContext *codec_ctx;
-  AVCodecParserContext *parser_ctx;
 } UnifexNifState;
 
 typedef UnifexNifState State;

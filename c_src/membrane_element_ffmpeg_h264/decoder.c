@@ -3,10 +3,6 @@
 void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
 
-  if (state->parser_ctx != NULL) {
-    av_parser_close(state->parser_ctx);
-  }
-
   if (state->codec_ctx != NULL) {
     avcodec_free_context(&state->codec_ctx);
   }
@@ -15,26 +11,24 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
 UNIFEX_TERM create(UnifexEnv *env) {
   UNIFEX_TERM res;
   State *state = unifex_alloc_state(env);
-  state->codec = NULL;
   state->codec_ctx = NULL;
-  state->parser_ctx = NULL;
 
 #if (LIBAVCODEC_VERSION_MAJOR < 58)
   avcodec_register_all();
 #endif
-  state->codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-  if (!state->codec) {
+  AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+  if (!codec) {
     res = create_result_error(env, "nocodec");
     goto exit_create;
   }
 
-  state->codec_ctx = avcodec_alloc_context3(state->codec);
+  state->codec_ctx = avcodec_alloc_context3(codec);
   if (!state->codec_ctx) {
     res = create_result_error(env, "codec_alloc");
     goto exit_create;
   }
 
-  if (avcodec_open2(state->codec_ctx, state->codec, NULL) < 0) {
+  if (avcodec_open2(state->codec_ctx, codec, NULL) < 0) {
     res = create_result_error(env, "codec_open");
     goto exit_create;
   }
