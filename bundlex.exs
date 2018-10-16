@@ -18,6 +18,11 @@ defmodule Membrane.Element.FFmpeg.H264.BundlexProject do
         deps: [unifex: :unifex],
         sources: ["_generated/decoder.c", "decoder.c"],
         pkg_configs: ["libavcodec", "libavutil"]
+      ],
+      encoder: [
+        deps: [unifex: :unifex],
+        sources: ["_generated/encoder.c", "encoder.c"],
+        pkg_configs: ["libavcodec", "libavutil"]
       ]
     ]
   end

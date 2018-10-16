@@ -37,4 +37,8 @@ defmodule IntegrationTest do
     assert_receive :eos, 1000
     assert_files_equal(out_path, ref_path)
   end
+
+  test "encode 10 720p frames" do
+    {_, in_path, out_path} = prepare_paths("10-720p")
+  end
 end
