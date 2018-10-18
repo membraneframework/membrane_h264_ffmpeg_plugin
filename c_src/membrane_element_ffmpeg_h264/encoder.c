@@ -48,9 +48,13 @@ UNIFEX_TERM create(UnifexEnv* env, int width, int height, char* pix_fmt, char* p
   state->codec_ctx->framerate.num = framerate_num;
   state->codec_ctx->framerate.den = framerate_denom;
 
-  state->codec_ctx->time_base.num = framerate_denom;
-  state->codec_ctx->time_base.den = framerate_num;
-
+  if (framerate_num == 0) {
+    state->codec_ctx->time_base.num = 1;
+    state->codec_ctx->time_base.den = 60;
+  } else {
+    state->codec_ctx->time_base.num = framerate_denom;
+    state->codec_ctx->time_base.den = framerate_num;
+  }
   av_dict_set(&params, "preset", preset, 0);
   av_dict_set(&params, "profile", profile, 0);
   av_dict_set_int(&params, "crf", crf, 0);

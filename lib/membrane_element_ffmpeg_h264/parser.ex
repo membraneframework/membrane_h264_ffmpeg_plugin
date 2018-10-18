@@ -53,7 +53,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
       actions = [buffer: {:output, bufs}, redemand: :output]
 
       actions =
-        if ctx.caps.(:output) == nil and bufs != [] do
+        if ctx.pads.output.caps == nil and bufs != [] do
           {:ok, width, height, profile} = Native.get_parsed_meta(parser_ref)
 
           caps = %H264{

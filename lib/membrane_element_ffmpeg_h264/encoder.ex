@@ -82,7 +82,7 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
 
     with {:ok, frames} <- Native.encode(payload, encoder_ref),
          bufs <- wrap_frames(frames),
-         in_caps <- ctx.caps.(:input) do
+         in_caps <- ctx.pads.input.caps do
       caps = [
         caps:
           {:output,
@@ -118,7 +118,7 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
              framerate_denom,
              state.crf
            ) do
-      {:ok, %{state | encoder_ref: encoder_ref}}
+      {{:ok, redemand: :output}, %{state | encoder_ref: encoder_ref}}
     else
       {:error, reason} -> {{:error, reason}, state}
     end

@@ -1,4 +1,4 @@
-defmodule DecodingPipeline do
+defmodule TranscodingPipeline do
   @moduledoc false
 
   use Membrane.Pipeline
@@ -10,13 +10,15 @@ defmodule DecodingPipeline do
       file_src: %Element.File.Source{chunk_size: 40_960, location: in_path},
       parser: Element.FFmpeg.H264.Parser,
       decoder: Element.FFmpeg.H264.Decoder,
+      encoder: %Element.FFmpeg.H264.Encoder{preset: :fast, crf: 30},
       sink: %Element.File.Sink{location: out_path}
     ]
 
     links = %{
       {:file_src, :output} => {:parser, :input},
       {:parser, :output} => {:decoder, :input},
-      {:decoder, :output} => {:sink, :input}
+      {:decoder, :output} => {:encoder, :input},
+      {:encoder, :output} => {:sink, :input}
     }
 
     spec = %Membrane.Pipeline.Spec{

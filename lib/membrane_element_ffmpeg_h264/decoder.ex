@@ -40,8 +40,8 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
 
     with {:ok, frames} <- Native.decode(payload, decoder_ref),
          bufs <- wrap_frames(frames),
-         in_caps <- ctx.caps.(:input),
-         out_caps <- ctx.caps.(:output),
+         in_caps <- ctx.pads.input.caps,
+         out_caps <- ctx.pads.output.caps,
          {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
       actions = Enum.concat([caps, bufs, [redemand: :output]])
       {{:ok, actions}, state}
