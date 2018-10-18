@@ -16,25 +16,27 @@ defmodule DecoderTest do
     assert a == b
   end
 
-  test "decode 10 720p frames" do
-    {in_path, ref_path, out_path} = prepare_paths("10-720p")
+  describe "[Integration]" do
+    test "decode 10 720p frames" do
+      {in_path, ref_path, out_path} = prepare_paths("10-720p")
 
-    {:ok, pid} =
-      Pipeline.start_link(DecodingPipeline, %{in: in_path, out: out_path, pid: self()}, [])
+      {:ok, pid} =
+        Pipeline.start_link(DecodingPipeline, %{in: in_path, out: out_path, pid: self()}, [])
 
-    assert Pipeline.play(pid) == :ok
-    assert_receive :eos, 500
-    assert_files_equal(out_path, ref_path)
-  end
+      assert Pipeline.play(pid) == :ok
+      assert_receive :eos, 500
+      assert_files_equal(out_path, ref_path)
+    end
 
-  test "decode 100 240p frames" do
-    {in_path, ref_path, out_path} = prepare_paths("100-240p")
+    test "decode 100 240p frames" do
+      {in_path, ref_path, out_path} = prepare_paths("100-240p")
 
-    {:ok, pid} =
-      Pipeline.start_link(DecodingPipeline, %{in: in_path, out: out_path, pid: self()}, [])
+      {:ok, pid} =
+        Pipeline.start_link(DecodingPipeline, %{in: in_path, out: out_path, pid: self()}, [])
 
-    assert Pipeline.play(pid) == :ok
-    assert_receive :eos, 1000
-    assert_files_equal(out_path, ref_path)
+      assert Pipeline.play(pid) == :ok
+      assert_receive :eos, 1000
+      assert_files_equal(out_path, ref_path)
+    end
   end
 end

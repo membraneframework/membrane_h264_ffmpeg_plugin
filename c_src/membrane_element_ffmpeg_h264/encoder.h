@@ -2,6 +2,7 @@
 
 #include <libavcodec/avcodec.h>
 #include <libavutil/opt.h>
+#include <libavutil/log.h>
 #include <libavutil/imgutils.h>
 
 typedef struct H264EncoderState {

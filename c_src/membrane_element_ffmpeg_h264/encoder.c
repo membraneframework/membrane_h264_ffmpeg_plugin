@@ -8,16 +8,20 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
   }
 }
 
-UNIFEX_TERM create(UnifexEnv* env, int width, int height, char* pix_fmt, char* preset, int framerate_num, int framerate_denom, int crf) {
+UNIFEX_TERM create(UnifexEnv* env, int width, int height, char* pix_fmt, char* preset, char* profile, int framerate_num, int framerate_denom, int crf) {
   UNIFEX_TERM res;
+  AVDictionary *params = NULL;
   State *state = unifex_alloc_state(env);
   state->codec_ctx = NULL;
   state->last_pts = 0;
 
+  //TODO: Consider using av_log_set_callback to pass messages to membrane logger
+  av_log_set_level(AV_LOG_QUIET);
+
 #if (LIBAVCODEC_VERSION_MAJOR < 58)
   avcodec_register_all();
 #endif
-  AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+  AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
   if (!codec) {
     res = create_result_error(env, "nocodec");
     goto exit_create;
@@ -47,8 +51,9 @@ UNIFEX_TERM create(UnifexEnv* env, int width, int height, char* pix_fmt, char* p
   state->codec_ctx->time_base.num = framerate_denom;
   state->codec_ctx->time_base.den = framerate_num;
 
-  av_opt_set(state->codec_ctx->priv_data, "preset", preset, 0);
-  av_opt_set_int(state->codec_ctx->priv_data, "crf", crf, 0);
+  av_dict_set(&params, "preset", preset, 0);
+  av_dict_set(&params, "profile", profile, 0);
+  av_dict_set_int(&params, "crf", crf, 0);
 
   if (avcodec_open2(state->codec_ctx, codec, NULL) < 0) {
     res = create_result_error(env, "codec_open");
@@ -60,6 +65,17 @@ exit_create:
   unifex_release_state(env, state);
   return res;
 }
+
+UNIFEX_TERM get_frame_size(UnifexEnv* env, State * state) {
+  int frame_size = av_image_get_buffer_size(state->codec_ctx->pix_fmt, state->codec_ctx->width, state->codec_ctx->height, 1);
+
+  if (frame_size < 0) {
+    return get_frame_size_result_error(env);
+  }
+
+  return get_frame_size_result_ok(env, frame_size);
+}
+
 static int get_frames(UnifexEnv * env, AVFrame * frame, UnifexPayload ***ret_frames, int * max_frames, int * frame_cnt, State * state) {
   AVPacket * pkt = av_packet_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));

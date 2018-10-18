@@ -113,6 +113,7 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
              caps.height,
              caps.format,
              state.preset,
+             state.profile,
              framerate_num,
              framerate_denom,
              state.crf
