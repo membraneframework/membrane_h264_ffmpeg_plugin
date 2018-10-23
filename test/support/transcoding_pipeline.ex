@@ -1,23 +1,23 @@
-defmodule EncodingPipeline do
+defmodule TranscodingPipeline do
   @moduledoc false
 
   use Membrane.Pipeline
   alias Membrane.Element
 
   @impl true
-  def handle_init(%{in: in_path, out: out_path, pid: pid} = opts) do
-    %{width: width, height: height, format: format} = opts
-
+  def handle_init(%{in: in_path, out: out_path, pid: pid}) do
     children = [
       file_src: %Element.File.Source{chunk_size: 40_960, location: in_path},
-      parser: %Element.RawVideo.Parser{width: width, height: height, format: format},
+      parser: Element.FFmpeg.H264.Parser,
+      decoder: Element.FFmpeg.H264.Decoder,
       encoder: %Element.FFmpeg.H264.Encoder{preset: :fast, crf: 30},
       sink: %Element.File.Sink{location: out_path}
     ]
 
     links = %{
       {:file_src, :output} => {:parser, :input},
-      {:parser, :output} => {:encoder, :input},
+      {:parser, :output} => {:decoder, :input},
+      {:decoder, :output} => {:encoder, :input},
       {:encoder, :output} => {:sink, :input}
     }
 
