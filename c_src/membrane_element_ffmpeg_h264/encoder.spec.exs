@@ -17,4 +17,4 @@ spec encode(payload, state) :: {:ok :: label, [payload]} | {:error :: label, rea
 
 spec flush(state) :: {:ok :: label, frames :: [payload]} | {:error :: label, reason :: atom}
 
-dirty :cpu, encode: 2
+dirty :cpu, encode: 2, flush: 1

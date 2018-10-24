@@ -28,7 +28,7 @@ defmodule TranscodingTest do
 
       assert {:ok, pid} = make_pipeline(in_path, out_path)
       assert Pipeline.play(pid) == :ok
-      assert_receive :eos, 1000
+      assert_receive :eos, 2000
     end
   end
 end
