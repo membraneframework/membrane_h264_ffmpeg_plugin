@@ -54,8 +54,7 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.19.0", only: :dev, runtime: false},
-      {:membrane_core,
-       github: "membraneframework/membrane-core", branch: "pads_context", override: true},
+      {:membrane_core, github: "membraneframework/membrane-core", override: true},
       {:membrane_common_c,
        github: "membraneframework/membrane-common-c",
        branch: "feature/shmex_unifex",

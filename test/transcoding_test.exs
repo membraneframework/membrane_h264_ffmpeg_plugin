@@ -30,5 +30,13 @@ defmodule TranscodingTest do
       assert Pipeline.play(pid) == :ok
       assert_receive :eos, 2000
     end
+
+    test "transcode 20 360p frames with 422 subsampling" do
+      {in_path, out_path} = prepare_paths("20-360p-I422")
+
+      assert {:ok, pid} = make_pipeline(in_path, out_path)
+      assert Pipeline.play(pid) == :ok
+      assert_receive :eos, 2000
+    end
   end
 end

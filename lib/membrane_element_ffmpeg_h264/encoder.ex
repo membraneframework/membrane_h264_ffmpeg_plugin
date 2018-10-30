@@ -9,7 +9,7 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
 
   def_input_pads input: [
                    demand_unit: :buffers,
-                   caps: {Raw, format: :I420, aligned: true}
+                   caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
                  ]
 
   def_output_pads output: [

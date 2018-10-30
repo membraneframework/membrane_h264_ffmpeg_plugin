@@ -11,7 +11,7 @@
   "membrane_caps_video_h264": {:git, "https://github.com/membraneframework/membrane-caps-video-h264.git", "e3d92aae2496f54130bfdaf8d310bd03757fdfc1", []},
   "membrane_caps_video_raw": {:git, "https://github.com/membraneframework/membrane-caps-video-raw.git", "7b217664af67592033671049453aeb366278c00f", [branch: "develop"]},
   "membrane_common_c": {:git, "https://github.com/membraneframework/membrane-common-c.git", "2fe08daf65bba1ee3ff8920f461f05d76ac7f7de", [branch: "feature/shmex_unifex"]},
-  "membrane_core": {:git, "https://github.com/membraneframework/membrane-core.git", "82a27fd89c447d980a18bc92b0ed233daf582a7a", [branch: "pads_context"]},
+  "membrane_core": {:git, "https://github.com/membraneframework/membrane-core.git", "6da99699d8b8de070ec92c3cded2e38cc24d90d3", []},
   "membrane_element_file": {:git, "https://github.com/membraneframework/membrane-element-file.git", "c11e1122ec328072fcd7d29e3d8029e4c9aa2832", [branch: "feature/release_v0.2"]},
   "membrane_element_rawvideo_parser": {:git, "https://github.com/membraneframework/membrane-element-rawvideo-parser.git", "fde4dcaace510b40336c7ecf96cd55c5120282b9", [branch: "develop"]},
   "membrane_loggers": {:hex, :membrane_loggers, "0.1.0", "76e944844a7c8cf45a2b5dd3ab6802a3c8f41a4efd823f63f4a69d9aac08230f", [:mix], [{:bundlex, "~> 0.1", [hex: :bundlex, repo: "hexpm", optional: false]}, {:membrane_common_c, "~> 0.1", [hex: :membrane_common_c, repo: "hexpm", optional: false]}, {:membrane_core, "~> 0.1", [hex: :membrane_core, repo: "hexpm", optional: false]}], "hexpm"},

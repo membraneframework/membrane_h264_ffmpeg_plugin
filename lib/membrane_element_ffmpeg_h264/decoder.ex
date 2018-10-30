@@ -12,7 +12,7 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
                  ]
 
   def_output_pads output: [
-                    caps: {Raw, format: :I420, aligned: true}
+                    caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
                   ]
 
   @impl true

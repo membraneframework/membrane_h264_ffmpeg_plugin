@@ -50,7 +50,7 @@ UNIFEX_TERM create(UnifexEnv* env, int width, int height, char* pix_fmt, char* p
 
   if (framerate_num == 0) {
     state->codec_ctx->time_base.num = 1;
-    state->codec_ctx->time_base.den = 60;
+    state->codec_ctx->time_base.den = 30;
   } else {
     state->codec_ctx->time_base.num = framerate_denom;
     state->codec_ctx->time_base.den = framerate_num;

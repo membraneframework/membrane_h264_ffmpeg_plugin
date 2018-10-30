@@ -34,5 +34,26 @@ defmodule DecodingTest do
       assert Pipeline.play(pid) == :ok
       assert_receive :eos, 1000
     end
+
+    test "encode 20 360p frames with 422 subsampling" do
+      {in_path, out_path} = prepare_paths("20-360p-I422")
+
+      assert {:ok, pid} =
+               Pipeline.start_link(
+                 EncodingPipeline,
+                 %{
+                   in: in_path,
+                   out: out_path,
+                   pid: self(),
+                   format: :I422,
+                   width: 480,
+                   height: 360
+                 },
+                 []
+               )
+
+      assert Pipeline.play(pid) == :ok
+      assert_receive :eos, 1000
+    end
   end
 end
