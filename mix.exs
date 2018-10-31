@@ -67,9 +67,7 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
       {:membrane_element_rawvideo_parser,
        github: "membraneframework/membrane-element-rawvideo-parser", only: [:dev, :test]},
       {:membrane_element_file,
-       github: "membraneframework/membrane-element-file",
-       branch: "feature/release_v0.2",
-       only: [:dev, :test]}
+       github: "membraneframework/membrane-element-file", only: [:dev, :test]}
     ]
   end
 end
