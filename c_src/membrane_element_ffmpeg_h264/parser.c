@@ -140,8 +140,8 @@ UNIFEX_TERM get_parsed_meta(UnifexEnv *env, UnifexNifState *state) {
     profile_atom = "unknown";
   }
 
-  return get_parsed_meta_result_ok(env, state->parser_ctx->coded_width,
-                                   state->parser_ctx->coded_height,
+  return get_parsed_meta_result_ok(env, state->parser_ctx->width,
+                                   state->parser_ctx->height,
                                    profile_atom);
 }
 
