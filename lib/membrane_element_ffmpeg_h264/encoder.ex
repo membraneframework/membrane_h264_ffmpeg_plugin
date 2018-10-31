@@ -3,7 +3,7 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
   Membrane element that encodes raw video frames to H264 format.
 
   The element expects each frame to be received in a separate buffer, so the parser
-  (`Membrane.Element.FFmpeg.H264.Parser`) may be required in a pipeline before
+  (`Membrane.Element.RawVideo.Parser`) may be required in a pipeline before
   the encoder (e.g. when input is read from `Membrane.Element.File.Source`).
 
   Additionaly, the encoder has to receive proper caps with picture format and dimensions
@@ -94,9 +94,10 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
   def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
     %{encoder_ref: encoder_ref} = state
 
-    with {:ok, frames} <- Native.encode(payload, encoder_ref),
-         bufs <- wrap_frames(frames),
-         in_caps <- ctx.pads.input.caps do
+    with {:ok, frames} <- Native.encode(payload, encoder_ref) do
+      bufs = wrap_frames(frames)
+      in_caps = ctx.pads.input.caps
+
       caps =
         {:output,
          %H264{

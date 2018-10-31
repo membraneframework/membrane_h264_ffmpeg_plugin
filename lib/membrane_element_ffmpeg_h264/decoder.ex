@@ -3,7 +3,7 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   Membrane element that decodes video in H264 format. It is backed by decoder from FFmpeg.
 
   The element expects the data for each frame (Access Unit) to be received in a separate buffer,
-  so the parser (`Membrane.Element.RawVideo.Parser`) may be required in a pipeline before
+  so the parser (`Membrane.Element.FFmpeg.H264.Parser`) may be required in a pipeline before
   decoder (e.g. when input is read from `Membrane.Element.File.Source`).
   """
   use Membrane.Element.Base.Filter
