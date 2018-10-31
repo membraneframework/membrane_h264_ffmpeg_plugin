@@ -60,19 +60,16 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
        branch: "feature/shmex_unifex",
        override: true},
       {:membrane_caps_video_h264, github: "membraneframework/membrane-caps-video-h264"},
-      {:membrane_caps_video_raw,
-       github: "membraneframework/membrane-caps-video-raw", branch: "develop"},
+      {:membrane_caps_video_raw, github: "membraneframework/membrane-caps-video-raw"},
       {:bundlex, "~> 0.1.3"},
       {:unifex, "~> 0.1.0", github: "membraneframework/unifex", override: true},
       {:bunch, github: "membraneframework/bunch", override: true},
       {:membrane_element_rawvideo_parser,
-       github: "membraneframework/membrane-element-rawvideo-parser",
-       branch: "develop",
-       only: :test},
+       github: "membraneframework/membrane-element-rawvideo-parser", only: [:dev, :test]},
       {:membrane_element_file,
        github: "membraneframework/membrane-element-file",
        branch: "feature/release_v0.2",
-       only: :test}
+       only: [:dev, :test]}
     ]
   end
 end

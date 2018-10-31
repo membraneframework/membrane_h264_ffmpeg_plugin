@@ -1,4 +1,11 @@
 defmodule Membrane.Element.FFmpeg.H264.Decoder do
+  @moduledoc """
+  Membrane element that decodes video in H264 format. It is backed by decoder from FFmpeg.
+
+  The element expects the data for each frame (Access Unit) to be received in a separate buffer,
+  so the parser (`Membrane.Element.RawVideo.Parser`) may be required in a pipeline before
+  decoder (e.g. when input is read from `Membrane.Element.File.Source`).
+  """
   use Membrane.Element.Base.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
@@ -43,6 +50,8 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
          in_caps = ctx.pads.input.caps,
          out_caps = ctx.pads.output.caps,
          {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
+      # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
+      # but it is noop otherwise, so there is no point in implementing special logic for that case
       actions = Enum.concat([caps, bufs, [redemand: :output]])
       {{:ok, actions}, state}
     else

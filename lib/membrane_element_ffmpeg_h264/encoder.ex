@@ -1,4 +1,16 @@
 defmodule Membrane.Element.FFmpeg.H264.Encoder do
+  @moduledoc """
+  Membrane element that encodes raw video frames to H264 format.
+
+  The element expects each frame to be received in a separate buffer, so the parser
+  (`Membrane.Element.FFmpeg.H264.Parser`) may be required in a pipeline before
+  the encoder (e.g. when input is read from `Membrane.Element.File.Source`).
+
+  Additionaly, the encoder has to receive proper caps with picture format and dimensions
+  before any encoding takes place.
+
+  Please check `t:t/0` for available options.
+  """
   use Membrane.Element.Base.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
@@ -36,7 +48,6 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
                 Constant rate factor that affects the quality of output stream.
                 Value of 0 is lossless compression while 51 (for 8-bit samples)
                 or 63 (10-bit) offers the worst quality.
-
                 The range is exponential, so increasing the CRF value +6 results
                 in roughly half the bitrate / file size, while -6 leads
                 to roughly twice the bitrate.
@@ -86,20 +97,20 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
     with {:ok, frames} <- Native.encode(payload, encoder_ref),
          bufs <- wrap_frames(frames),
          in_caps <- ctx.pads.input.caps do
-      caps = [
-        caps:
-          {:output,
-           %H264{
-             alignment: :au,
-             framerate: in_caps.framerate,
-             height: in_caps.height,
-             width: in_caps.width,
-             profile: state.profile,
-             stream_format: :byte_stream
-           }}
-      ]
+      caps =
+        {:output,
+         %H264{
+           alignment: :au,
+           framerate: in_caps.framerate,
+           height: in_caps.height,
+           width: in_caps.width,
+           profile: state.profile,
+           stream_format: :byte_stream
+         }}
 
-      actions = Enum.concat([caps, bufs, [redemand: :output]])
+      # redemand is needed until the internal buffer of encoder is filled (no buffers will be
+      # generated before that) but it is a noop if the demand has been fulfilled
+      actions = [{:caps, caps} | bufs] ++ [redemand: :output]
       {{:ok, actions}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
@@ -131,7 +142,8 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
   def handle_event(:input, %EndOfStream{}, _ctx, state) do
     with {:ok, frames} <- Native.flush(state.encoder_ref),
          bufs <- wrap_frames(frames) do
-      {{:ok, bufs ++ [event: {:output, %EndOfStream{}}]}, state}
+      actions = bufs ++ [event: {:output, %EndOfStream{}}, notify: {:end_of_stream, :input}]
+      {{:ok, actions}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
