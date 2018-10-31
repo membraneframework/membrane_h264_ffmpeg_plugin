@@ -37,16 +37,18 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
                 Value of 0 is lossless compression while 51 (for 8-bit samples)
                 or 63 (10-bit) offers the worst quality.
 
-                The range is exponential, so increasing the CRF value +6 results in
-                roughly half the bitrate / file size, while -6 leads to roughly twice the bitrate.
+                The range is exponential, so increasing the CRF value +6 results
+                in roughly half the bitrate / file size, while -6 leads
+                to roughly twice the bitrate.
                 """,
                 type: :int,
                 default: @default_crf
               ],
               preset: [
                 description: """
-                Collection of predefined options providing certain encoding. The slower the
-                preset choosen, the higher compression for the same quality can be achieved.
+                Collection of predefined options providing certain encoding.
+                The slower the preset choosen, the higher compression for the
+                same quality can be achieved.
                 """,
                 type: :atom,
                 spec: presets(),
@@ -54,7 +56,8 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
               ],
               profile: [
                 description: """
-                Defines the features that will have to be supported by decoder to decode this video.
+                Defines the features that will have to be supported by decoder
+                to decode video encoded with this element.
                 """,
                 type: :atom,
                 spec: H264.profile_t(),
@@ -67,8 +70,8 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
   end
 
   @impl true
-  def handle_demand(:output, _, :buffers, _ctx, %{encoder_ref: nil} = state) do
-    # Wait until we have encoder
+  def handle_demand(:output, _size, :buffers, _ctx, %{encoder_ref: nil} = state) do
+    # Wait until we have an encoder
     {:ok, state}
   end
 
@@ -134,12 +137,12 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
     end
   end
 
-  def handle_event(:input, event, _ctx, state) do
-    {{:ok, event: {:output, event}}, state}
+  def handle_event(:input, event, ctx, state) do
+    super(:input, event, ctx, state)
   end
 
   @impl true
-  def handle_prepared_to_stopped(_, state) do
+  def handle_prepared_to_stopped(_ctx, state) do
     {:ok, %{state | encoder_ref: nil}}
   end
 

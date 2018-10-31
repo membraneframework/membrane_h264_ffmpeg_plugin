@@ -16,12 +16,12 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
                   ]
 
   @impl true
-  def handle_init(_) do
+  def handle_init(_opts) do
     {:ok, %{decoder_ref: nil}}
   end
 
   @impl true
-  def handle_stopped_to_prepared(_, state) do
+  def handle_stopped_to_prepared(_ctx, state) do
     with {:ok, decoder_ref} <- Native.create() do
       {:ok, %{state | decoder_ref: decoder_ref}}
     else
@@ -39,9 +39,9 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
     %{decoder_ref: decoder_ref} = state
 
     with {:ok, frames} <- Native.decode(payload, decoder_ref),
-         bufs <- wrap_frames(frames),
-         in_caps <- ctx.pads.input.caps,
-         out_caps <- ctx.pads.output.caps,
+         bufs = wrap_frames(frames),
+         in_caps = ctx.pads.input.caps,
+         out_caps = ctx.pads.output.caps,
          {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
       actions = Enum.concat([caps, bufs, [redemand: :output]])
       {{:ok, actions}, state}
@@ -60,18 +60,19 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   def handle_event(:input, %EndOfStream{}, _ctx, state) do
     with {:ok, frames} <- Native.flush(state.decoder_ref),
          bufs <- wrap_frames(frames) do
-      {{:ok, bufs ++ [event: {:output, %EndOfStream{}}]}, state}
+      actions = bufs ++ [event: {:output, %EndOfStream{}}, notify: {:end_of_stream, :input}]
+      {{:ok, actions}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
   end
 
-  def handle_event(:input, event, _ctx, state) do
-    {{:ok, event: {:output, event}}, state}
+  def handle_event(:input, event, ctx, state) do
+    super(:input, event, ctx, state)
   end
 
   @impl true
-  def handle_prepared_to_stopped(_, state) do
+  def handle_prepared_to_stopped(_ctx, state) do
     {:ok, %{state | decoder_ref: nil}}
   end
 
