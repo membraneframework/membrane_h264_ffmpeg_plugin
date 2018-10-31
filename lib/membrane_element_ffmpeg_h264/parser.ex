@@ -1,4 +1,10 @@
 defmodule Membrane.Element.FFmpeg.H264.Parser do
+  @moduledoc """
+  Membrane element providing parser for H264 encoded video stream.
+  Uses the parser provided by FFmpeg.
+
+  It receives buffers with binary payloads and splits them into frames.
+  """
   use Membrane.Element.Base.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
@@ -30,7 +36,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   end
 
   @impl true
-  def handle_stopped_to_prepared(_, state) do
+  def handle_stopped_to_prepared(_ctx, state) do
     with {:ok, parser_ref} <- Native.create() do
       {:ok, %{state | parser_ref: parser_ref}}
     else
@@ -80,23 +86,31 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   def handle_event(:input, %EndOfStream{}, _ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes} <- Native.flush(parser_ref),
-         {bufs, rest} <- gen_bufs_by_sizes(partial_frame, sizes) do
+    with {:ok, sizes} <- Native.flush(parser_ref) do
+      {bufs, rest} = gen_bufs_by_sizes(partial_frame, sizes)
+
       if rest != "" do
         warn("Discarding incomplete frame because of EndOfStream")
       end
 
       state = %{state | partial_frame: ""}
-      {{:ok, buffer: {:output, bufs}, event: {:output, %EndOfStream{}}}, state}
+
+      actions = [
+        buffer: {:output, bufs},
+        event: {:output, %EndOfStream{}},
+        notify: {:end_of_stream, :input}
+      ]
+
+      {{:ok, actions}, state}
     end
   end
 
-  def handle_event(:input, event, _ctx, state) do
-    {{:ok, event: {:output, event}}, state}
+  def handle_event(:input, event, ctx, state) do
+    super(:input, event, ctx, state)
   end
 
   @impl true
-  def handle_prepared_to_stopped(_, state) do
+  def handle_prepared_to_stopped(_ctx, state) do
     {:ok, %{state | parser_ref: nil}}
   end
 
