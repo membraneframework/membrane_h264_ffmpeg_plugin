@@ -54,20 +54,15 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.19.0", only: :dev, runtime: false},
-      {:membrane_core, github: "membraneframework/membrane-core", override: true},
-      {:membrane_common_c,
-       github: "membraneframework/membrane-common-c",
-       branch: "feature/shmex_unifex",
-       override: true},
-      {:membrane_caps_video_h264, github: "membraneframework/membrane-caps-video-h264"},
-      {:membrane_caps_video_raw, github: "membraneframework/membrane-caps-video-raw"},
+      {:membrane_core, "~> 0.2"},
+      {:membrane_common_c, "~> 0.2"},
+      {:membrane_caps_video_h264, "~> 0.1"},
+      {:membrane_caps_video_raw, "~> 0.1"},
       {:bundlex, "~> 0.1.3"},
-      {:unifex, "~> 0.1.0", github: "membraneframework/unifex", override: true},
-      {:bunch, github: "membraneframework/bunch", override: true},
-      {:membrane_element_rawvideo_parser,
-       github: "membraneframework/membrane-element-rawvideo-parser", only: [:dev, :test]},
-      {:membrane_element_file,
-       github: "membraneframework/membrane-element-file", only: [:dev, :test]}
+      {:unifex, "~> 0.1.0"},
+      {:bunch, "~> 0.1.2"},
+      {:membrane_element_rawvideo_parser, "~> 0.1", only: [:dev, :test]},
+      {:membrane_element_file, "~> 0.2", only: [:dev, :test]}
     ]
   end
 end
