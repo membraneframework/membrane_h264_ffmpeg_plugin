@@ -10,6 +10,7 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
       elixir: "~> 1.7",
+      elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       description: "Membrane Multimedia Framework (FFmpeg H264 Element)",
       package: package(),
@@ -27,7 +28,10 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
     ]
   end
 
-  def docs do
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_env), do: ["lib"]
+
+  defp docs do
     [
       main: "readme",
       extras: ["README.md"],
@@ -50,10 +54,20 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.19.0", only: :dev, runtime: false},
-      {:membrane_core, github: "membraneframework/membrane-core"},
+      {:membrane_core, github: "membraneframework/membrane-core", override: true},
+      {:membrane_common_c,
+       github: "membraneframework/membrane-common-c",
+       branch: "feature/shmex_unifex",
+       override: true},
+      {:membrane_caps_video_h264, github: "membraneframework/membrane-caps-video-h264"},
+      {:membrane_caps_video_raw, github: "membraneframework/membrane-caps-video-raw"},
       {:bundlex, "~> 0.1.3"},
-      {:unifex, "~> 0.1.0", github: "membraneframework/unifex"},
-      {:bunch, github: "membraneframework/bunch", override: true}
+      {:unifex, "~> 0.1.0", github: "membraneframework/unifex", override: true},
+      {:bunch, github: "membraneframework/bunch", override: true},
+      {:membrane_element_rawvideo_parser,
+       github: "membraneframework/membrane-element-rawvideo-parser", only: [:dev, :test]},
+      {:membrane_element_file,
+       github: "membraneframework/membrane-element-file", only: [:dev, :test]}
     ]
   end
 end
