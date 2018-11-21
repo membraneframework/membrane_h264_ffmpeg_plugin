@@ -5,8 +5,8 @@ defmodule EncodingPipeline do
   alias Membrane.Element
 
   @impl true
-  def handle_init(%{in: in_path, out: out_path, pid: pid} = opts) do
-    %{width: width, height: height, format: format} = opts
+  def handle_init(opts) do
+    %{width: width, height: height, format: format, in: in_path, out: out_path, pid: pid} = opts
 
     children = [
       file_src: %Element.File.Source{chunk_size: 40_960, location: in_path},
