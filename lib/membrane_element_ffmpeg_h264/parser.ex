@@ -14,7 +14,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   def_input_pads input: [
                    demand_unit: :buffers,
-                   caps: {H264, stream_format: :byte_stream}
+                   caps: :any
                  ]
 
   def_output_pads output: [
