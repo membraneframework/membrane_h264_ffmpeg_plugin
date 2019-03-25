@@ -19,14 +19,12 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
   use Bunch
   use Bunch.Typespec
 
-  def_input_pads input: [
-                   demand_unit: :buffers,
-                   caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
-                 ]
+  def_input_pad :input,
+    demand_unit: :buffers,
+    caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
 
-  def_output_pads output: [
-                    caps: {H264, stream_format: :byte_stream, alignment: :au}
-                  ]
+  def_output_pad :output,
+    caps: {H264, stream_format: :byte_stream, alignment: :au}
 
   @default_crf 23
 

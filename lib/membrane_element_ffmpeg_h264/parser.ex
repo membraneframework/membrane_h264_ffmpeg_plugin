@@ -12,14 +12,12 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   alias Membrane.Caps.Video.H264
   use Membrane.Log
 
-  def_input_pads input: [
-                   demand_unit: :buffers,
-                   caps: :any
-                 ]
+  def_input_pad :input,
+    demand_unit: :buffers,
+    caps: :any
 
-  def_output_pads output: [
-                    caps: {H264, stream_format: :byte_stream, alignment: :au}
-                  ]
+  def_output_pad :output,
+    caps: {H264, stream_format: :byte_stream, alignment: :au}
 
   def_options framerate: [
                 type: :framerate,
