@@ -5,7 +5,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   It receives buffers with binary payloads and splits them into frames.
   """
-  use Membrane.Element.Base.Filter
+  use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Event.EndOfStream

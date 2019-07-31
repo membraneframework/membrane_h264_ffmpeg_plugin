@@ -6,7 +6,7 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   so the parser (`Membrane.Element.FFmpeg.H264.Parser`) may be required in a pipeline before
   decoder (e.g. when input is read from `Membrane.Element.File.Source`).
   """
-  use Membrane.Element.Base.Filter
+  use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Event.EndOfStream
