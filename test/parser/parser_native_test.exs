@@ -3,7 +3,7 @@ defmodule Parser.NativeTest do
   alias Membrane.Element.FFmpeg.H264.Parser.Native, as: Parser
 
   test "Decode 1 240p frame" do
-    in_path = "fixtures/input-100-240p.h264" |> Path.expand(__DIR__)
+    in_path = "../fixtures/input-100-240p.h264" |> Path.expand(__DIR__)
 
     assert {:ok, file} = File.read(in_path)
     assert {:ok, decoder_ref} = Parser.create()
