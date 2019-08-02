@@ -11,7 +11,7 @@ defmodule Membrane.Element.FFmpeg.H264.Encoder do
 
   Please check `t:t/0` for available options.
   """
-  use Membrane.Element.Base.Filter
+  use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Event.EndOfStream

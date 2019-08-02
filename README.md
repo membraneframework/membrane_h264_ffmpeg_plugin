@@ -1,6 +1,6 @@
 # Membrane Multimedia Framework: FFmpeg H264 Element
 
-[![Build Status](https://travis-ci.com/membraneframework/membrane-element-ffmpeg-h264.svg?branch=master)](https://travis-ci.com/membraneframework/membrane-element-ffmpeg-h264)
+[![CircleCI](https://circleci.com/gh/membraneframework/membrane-element-ffmpeg-h264.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane-element-ffmpeg-h264)
 
 This package provides [Membrane Multimedia Framework](https://membraneframework.org)
 elements that can be used to encode, parse and decode H264 video streams using [ffmpeg](https://www.ffmpeg.org)

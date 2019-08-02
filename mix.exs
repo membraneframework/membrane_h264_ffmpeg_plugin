@@ -54,8 +54,9 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.19.0", only: :dev, runtime: false},
-      {:membrane_core, "~> 0.3.0"},
-      {:membrane_common_c, "~> 0.2.0"},
+      {:membrane_core,
+       github: "membraneframework/membrane-core", branch: "master", override: true},
+      {:membrane_common_c, "~> 0.2.3"},
       {:membrane_caps_video_h264, "~> 0.1.0"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
       {:bundlex, "~> 0.2.0"},
