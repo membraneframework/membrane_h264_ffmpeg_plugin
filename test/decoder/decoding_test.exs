@@ -1,8 +1,8 @@
 defmodule DecoderTest do
   use ExUnit.Case
   import Membrane.Testing.Assertions
-  alias Membrane.Testing.Pipeline
   alias Membrane.Element
+  alias Membrane.Testing.Pipeline
 
   def prepare_paths(filename) do
     in_path = "../fixtures/input-#{filename}.h264" |> Path.expand(__DIR__)
@@ -20,12 +20,7 @@ defmodule DecoderTest do
         parser: Element.FFmpeg.H264.Parser,
         decoder: Element.FFmpeg.H264.Decoder,
         sink: %Element.File.Sink{location: out_path}
-      ],
-      links: %{
-        {:file_src, :output} => {:parser, :input},
-        {:parser, :output} => {:decoder, :input},
-        {:decoder, :output} => {:sink, :input}
-      }
+      ]
     })
   end
 
@@ -35,35 +30,26 @@ defmodule DecoderTest do
     assert a == b
   end
 
+  def perform_test(filename, timeout) do
+    {in_path, ref_path, out_path} = prepare_paths(filename)
+
+    assert {:ok, pid} = make_pipeline(in_path, out_path)
+    assert Pipeline.play(pid) == :ok
+    assert_end_of_stream(pid, :sink, :input, timeout)
+    assert_files_equal(out_path, ref_path)
+  end
+
   describe "DecodingPipeline should" do
     test "decode 10 720p frames" do
-      {in_path, ref_path, out_path} = prepare_paths("10-720p")
-
-      assert {:ok, pid} = make_pipeline(in_path, out_path)
-
-      assert Pipeline.play(pid) == :ok
-      assert_end_of_stream(pid, :sink, :input, 500)
-      assert_files_equal(out_path, ref_path)
+      perform_test("10-720p", 500)
     end
 
     test "decode 100 240p frames" do
-      {in_path, ref_path, out_path} = prepare_paths("100-240p")
-
-      assert {:ok, pid} = make_pipeline(in_path, out_path)
-
-      assert Pipeline.play(pid) == :ok
-      assert_end_of_stream(pid, :sink, :input, 1000)
-      assert_files_equal(out_path, ref_path)
+      perform_test("100-240p", 1000)
     end
 
     test "decode 20 360p frames with 422 subsampling" do
-      {in_path, ref_path, out_path} = prepare_paths("20-360p-I422")
-
-      assert {:ok, pid} = make_pipeline(in_path, out_path)
-
-      assert Pipeline.play(pid) == :ok
-      assert_end_of_stream(pid, :sink, :input, 1000)
-      assert_files_equal(out_path, ref_path)
+      perform_test("20-360p-I422", 1000)
     end
   end
 end
