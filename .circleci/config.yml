@@ -10,9 +10,6 @@ jobs:
 
     steps:
       - checkout
-      - run: add-apt-repository -y ppa:jonathonf/ffmpeg-4
-      - run: apt-get update -qq
-      - run: apt-get install -q -y libavcodec-dev libavformat-dev libavutil-dev
       - run: mix deps.get
       - run: mix format --check-formatted
       - run: mix test
