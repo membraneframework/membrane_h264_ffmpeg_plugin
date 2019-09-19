@@ -8,7 +8,6 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Event.EndOfStream
   alias Membrane.Caps.Video.H264
   use Membrane.Log
 
@@ -81,30 +80,26 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   end
 
   @impl true
-  def handle_event(:input, %EndOfStream{}, _ctx, state) do
+  def handle_end_of_stream(:input, _ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
     with {:ok, sizes} <- Native.flush(parser_ref) do
       {bufs, rest} = gen_bufs_by_sizes(partial_frame, sizes)
 
       if rest != "" do
-        warn("Discarding incomplete frame because of EndOfStream")
+        warn("Discarding incomplete frame because of end of stream")
       end
 
       state = %{state | partial_frame: ""}
 
       actions = [
         buffer: {:output, bufs},
-        event: {:output, %EndOfStream{}},
+        end_of_stream: :output,
         notify: {:end_of_stream, :input}
       ]
 
       {{:ok, actions}, state}
     end
-  end
-
-  def handle_event(:input, event, ctx, state) do
-    super(:input, event, ctx, state)
   end
 
   @impl true

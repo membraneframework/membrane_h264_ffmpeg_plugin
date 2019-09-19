@@ -9,7 +9,6 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Event.EndOfStream
   alias Membrane.Caps.Video.{H264, Raw}
   use Bunch
 
@@ -64,18 +63,14 @@ defmodule Membrane.Element.FFmpeg.H264.Decoder do
   end
 
   @impl true
-  def handle_event(:input, %EndOfStream{}, _ctx, state) do
+  def handle_end_of_stream(:input, _ctx, state) do
     with {:ok, frames} <- Native.flush(state.decoder_ref),
          bufs <- wrap_frames(frames) do
-      actions = bufs ++ [event: {:output, %EndOfStream{}}, notify: {:end_of_stream, :input}]
+      actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
-  end
-
-  def handle_event(:input, event, ctx, state) do
-    super(:input, event, ctx, state)
   end
 
   @impl true
