@@ -50,8 +50,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes} <- Native.parse(payload, parser_ref),
-         {bufs, rest} <- gen_bufs_by_sizes(partial_frame <> payload, sizes) do
+    with {:ok, sizes, flags} <- Native.parse(payload, parser_ref),
+         {bufs, rest} <- gen_bufs(partial_frame <> payload, sizes, flags) do
       state = %{state | partial_frame: rest}
       actions = [buffer: {:output, bufs}, redemand: :output]
 
@@ -83,8 +83,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   def handle_end_of_stream(:input, _ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes} <- Native.flush(parser_ref) do
-      {bufs, rest} = gen_bufs_by_sizes(partial_frame, sizes)
+    with {:ok, sizes, flags} <- Native.flush(parser_ref) do
+      {bufs, rest} = gen_bufs(partial_frame, sizes, flags)
 
       if rest != "" do
         warn("Discarding incomplete frame because of end of stream")
@@ -107,10 +107,12 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp gen_bufs_by_sizes(input, sizes) do
-    Enum.map_reduce(sizes, input, fn size, stream ->
+  defp gen_bufs(input, sizes, flags) do
+    Enum.zip(sizes, flags)
+    |> Enum.map_reduce(input, fn {size, flags}, stream ->
+      use Bitwise
       <<frame::bytes-size(size), rest::binary>> = stream
-      {%Buffer{payload: frame}, rest}
+      {%Buffer{payload: frame, metadata: %{key_frame?: (flags &&& 0b1) != 0}}, rest}
     end)
   end
 end
