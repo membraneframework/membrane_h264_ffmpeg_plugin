@@ -148,9 +148,11 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
 UNIFEX_TERM get_metadata(UnifexEnv* env, UnifexNifState* state) {
   char * pix_format;
   switch (state->codec_ctx->pix_fmt) {
+  case AV_PIX_FMT_YUVJ420P:
   case AV_PIX_FMT_YUV420P:
     pix_format = "I420";
     break;
+  case AV_PIX_FMT_YUVJ422P:
   case AV_PIX_FMT_YUV422P:
     pix_format = "I422";
     break;
