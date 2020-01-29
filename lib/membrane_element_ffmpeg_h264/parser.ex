@@ -25,11 +25,27 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
                 description: """
                 Framerate of video stream, see `t:Membrane.Caps.Video.H264.framerate_t/0`
                 """
+              ],
+              sps: [
+                type: :binary,
+                default: <<>>
+              ],
+              pps: [
+                type: :binary,
+                default: <<>>
               ]
 
   @impl true
   def handle_init(opts) do
-    {:ok, opts |> Map.merge(%{parser_ref: nil, partial_frame: ""})}
+    first_frame_prefix = (opts.sps || <<>>) <> (opts.pps || <<>>)
+
+    state = %{
+      parser_ref: nil,
+      partial_frame: "",
+      first_frame_prefix: first_frame_prefix
+    }
+
+    {:ok, opts |> Map.merge(state)}
   end
 
   @impl true
@@ -49,6 +65,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   @impl true
   def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
+    payload = state.first_frame_prefix <> payload
 
     with {:ok, sizes} <- Native.parse(payload, parser_ref),
          {bufs, rest} <- gen_bufs_by_sizes(partial_frame <> payload, sizes) do
@@ -73,7 +90,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
           actions
         end
 
-      {{:ok, actions}, state}
+      {{:ok, actions}, %{state | first_frame_prefix: <<>>}}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
