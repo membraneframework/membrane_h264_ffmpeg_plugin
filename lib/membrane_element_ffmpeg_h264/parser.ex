@@ -28,24 +28,31 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
               ],
               sps: [
                 type: :binary,
-                default: <<>>
+                default: <<>>,
+                description: """
+                Sequence Parameter Set NAL unit - if absent in the stream, should
+                be provided via this option.
+                """
               ],
               pps: [
                 type: :binary,
-                default: <<>>
+                default: <<>>,
+                description: """
+                Picture Parameter Set NAL unit - if absent in the stream, should
+                be provided via this option.
+                """
               ]
 
   @impl true
   def handle_init(opts) do
-    first_frame_prefix = (opts.sps || <<>>) <> (opts.pps || <<>>)
-
     state = %{
       parser_ref: nil,
-      partial_frame: "",
-      first_frame_prefix: first_frame_prefix
+      partial_frame: <<>>,
+      first_frame_prefix: opts.sps <> opts.pps,
+      framerate: opts.framerate
     }
 
-    {:ok, opts |> Map.merge(state)}
+    {:ok, state}
   end
 
   @impl true
@@ -107,7 +114,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
         warn("Discarding incomplete frame because of end of stream")
       end
 
-      state = %{state | partial_frame: ""}
+      state = %{state | partial_frame: <<>>}
 
       actions = [
         buffer: {:output, bufs},
