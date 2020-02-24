@@ -29,11 +29,12 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
               |> Map.new()
 
   def parse(access_unit) do
-    access_unit.payload
-    |> extract_nalus()
-    |> Enum.map_reduce(%{key_frame?: false}, &parse_nalu/2)
-    ~> ({[first_nalu | nalus], au_info} ->
-          [Bunch.Struct.put_in(first_nalu, [:metadata, :access_unit], au_info) | nalus])
+    {buffers, {au_info, _new_access_unit}} =
+      access_unit
+      |> extract_nalus()
+      |> Enum.map_reduce({%{key_frame?: false}, new_access_unit?: true}, &parse_nalu/2)
+
+    {buffers, au_info}
   end
 
   defp extract_nalus(access_unit) do
@@ -43,7 +44,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
     |> Enum.map(fn [{from, _}, {to, _}] -> :binary.part(access_unit, from, to - from) end)
   end
 
-  defp parse_nalu(nalu, access_unit_info) do
+  defp parse_nalu(nalu, {access_unit_info, new_access_unit?: new_au}) do
     <<0::1, _nal_ref_idc::unsigned-integer-size(2), nal_unit_type::unsigned-integer-size(5),
       _rest::bitstring>> = unprefix(nalu)
 
@@ -58,7 +59,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
         end
       )
 
-    {%Buffer{metadata: %{type: type}, payload: nalu}, access_unit_info}
+    buffer = %Buffer{metadata: %{type: type, new_access_unit?: new_au}, payload: nalu}
+    {buffer, {access_unit_info, new_access_unit?: false}}
   end
 
   defp unprefix(<<0, 0, 0, 1, nalu::binary>>), do: nalu

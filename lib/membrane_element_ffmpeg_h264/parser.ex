@@ -5,18 +5,19 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   It receives buffers with binary payloads and splits them into frames.
   """
+  use Bunch
   use Membrane.Filter
+  use Membrane.Log
   alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
   alias Membrane.Caps.Video.H264
-  use Membrane.Log
 
   def_input_pad :input,
     demand_unit: :buffers,
     caps: :any
 
   def_output_pad :output,
-    caps: {H264, stream_format: :byte_stream, alignment: :nal}
+    caps: {H264, stream_format: :byte_stream}
 
   def_options framerate: [
                 type: :framerate,
@@ -24,6 +25,14 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
                 default: {0, 1},
                 description: """
                 Framerate of video stream, see `t:Membrane.Caps.Video.H264.framerate_t/0`
+                """
+              ],
+              alignment: [
+                type: :atom,
+                spec: :au | :nal,
+                default: :au,
+                description: """
+                Stream units carried by each output buffer. See `t:Membrane.Caps.Video.H264.alignment_t`
                 """
               ]
 
@@ -50,9 +59,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes, flags} <- Native.parse(payload, parser_ref),
-         {bufs, rest} <- gen_bufs(partial_frame <> payload, sizes, flags) do
-      bufs = bufs |> Enum.flat_map(&NALu.parse/1)
+    with {:ok, sizes, _flags} <- Native.parse(payload, parser_ref),
+         {bufs, rest} <- gen_bufs(partial_frame <> payload, sizes, state.alignment) do
       state = %{state | partial_frame: rest}
       actions = [buffer: {:output, bufs}, redemand: :output]
 
@@ -64,7 +72,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
             width: width,
             height: height,
             framerate: state.framerate,
-            alignment: :nal,
+            alignment: state.alignment,
             stream_format: :byte_stream,
             profile: profile
           }
@@ -84,9 +92,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   def handle_end_of_stream(:input, _ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes, flags} <- Native.flush(parser_ref) do
-      {bufs, rest} = gen_bufs(partial_frame, sizes, flags)
-      bufs = bufs |> Enum.flat_map(&NALu.parse/1)
+    with {:ok, sizes, _flags} <- Native.flush(parser_ref) do
+      {bufs, rest} = gen_bufs(partial_frame, sizes, state.alignment)
 
       if rest != "" do
         warn("Discarding incomplete frame because of end of stream")
@@ -109,12 +116,16 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp gen_bufs(input, sizes, flags) do
-    Enum.zip(sizes, flags)
-    |> Enum.map_reduce(input, fn {size, flags}, stream ->
-      use Bitwise
+  defp gen_bufs(input, sizes, alignment) do
+    Enum.flat_map_reduce(sizes, input, fn size, stream ->
       <<frame::bytes-size(size), rest::binary>> = stream
-      {%Buffer{payload: frame, metadata: %{key_frame?: (flags &&& 0b1) != 0}}, rest}
+      {bufs, au_metadata} = NALu.parse(frame)
+
+      case alignment do
+        :au -> [%Buffer{payload: frame, metadata: au_metadata}]
+        :nal -> Enum.map(bufs, &Bunch.Struct.put_in(&1, [:metadata, :access_unit], au_metadata))
+      end
+      ~> {&1, rest}
     end)
   end
 end
