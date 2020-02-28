@@ -56,11 +56,11 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
+  def handle_process(:input, %Buffer{payload: payload, metadata: metadata}, ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
     with {:ok, sizes, _flags} <- Native.parse(payload, parser_ref),
-         {bufs, rest} <- gen_bufs(partial_frame <> payload, sizes, state.alignment) do
+         {bufs, rest} <- gen_bufs(partial_frame <> payload, metadata, sizes, state.alignment) do
       state = %{state | partial_frame: rest}
       actions = [buffer: {:output, bufs}, redemand: :output]
 
@@ -93,7 +93,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
     with {:ok, sizes, _flags} <- Native.flush(parser_ref) do
-      {bufs, rest} = gen_bufs(partial_frame, sizes, state.alignment)
+      {bufs, rest} = gen_bufs(partial_frame, %{}, sizes, state.alignment)
 
       if rest != "" do
         warn("Discarding incomplete frame because of end of stream")
@@ -116,14 +116,23 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp gen_bufs(input, sizes, alignment) do
+  defp gen_bufs(input, in_metadata, sizes, alignment) do
     Enum.flat_map_reduce(sizes, input, fn size, stream ->
       <<frame::bytes-size(size), rest::binary>> = stream
       {bufs, au_metadata} = NALu.parse(frame)
 
       case alignment do
-        :au -> [%Buffer{payload: frame, metadata: au_metadata}]
-        :nal -> Enum.map(bufs, &Bunch.Struct.put_in(&1, [:metadata, :access_unit], au_metadata))
+        :au ->
+          [%Buffer{payload: frame, metadata: Map.merge(in_metadata, au_metadata)}]
+
+        :nal ->
+          Enum.map(bufs, fn b ->
+            Map.update!(
+              b,
+              :metadata,
+              &(&1 |> Map.merge(%{access_unit: au_metadata}) |> Map.merge(in_metadata))
+            )
+          end)
       end
       ~> {&1, rest}
     end)
