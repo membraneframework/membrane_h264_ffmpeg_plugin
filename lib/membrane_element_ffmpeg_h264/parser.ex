@@ -38,7 +38,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   @impl true
   def handle_init(opts) do
-    {:ok, opts |> Map.merge(%{parser_ref: nil, partial_frame: ""})}
+    {:ok, opts |> Map.merge(%{parser_ref: nil, partial_frame: "", metadata: nil})}
   end
 
   @impl true
@@ -60,8 +60,9 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
     with {:ok, sizes, _flags} <- Native.parse(payload, parser_ref),
-         {bufs, rest} <- gen_bufs(partial_frame <> payload, metadata, sizes, state.alignment) do
-      state = %{state | partial_frame: rest}
+         {bufs, {metadata, rest}} <-
+           gen_bufs(partial_frame <> payload, state.metadata, metadata, sizes, state.alignment) do
+      state = %{state | partial_frame: rest, metadata: if(rest == "", do: nil, else: metadata)}
       actions = [buffer: {:output, bufs}, redemand: :output]
 
       actions =
@@ -82,7 +83,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
           actions
         end
 
-      {{:ok, actions}, state}
+      {{:ok, actions ++ [redemand: :output]}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -93,7 +94,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
     with {:ok, sizes, _flags} <- Native.flush(parser_ref) do
-      {bufs, rest} = gen_bufs(partial_frame, %{}, sizes, state.alignment)
+      {bufs, rest} =
+        gen_bufs(partial_frame, state.metadata, state.metadata, sizes, state.alignment)
 
       if rest != "" do
         warn("Discarding incomplete frame because of end of stream")
@@ -116,25 +118,29 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp gen_bufs(input, in_metadata, sizes, alignment) do
-    Enum.flat_map_reduce(sizes, input, fn size, stream ->
-      <<frame::bytes-size(size), rest::binary>> = stream
-      {bufs, au_metadata} = NALu.parse(frame)
+  defp gen_bufs(input, old_metadata, new_metadata, sizes, alignment) do
+    Enum.flat_map_reduce(
+      sizes,
+      {old_metadata || new_metadata, input},
+      fn size, {metadata, stream} ->
+        <<frame::bytes-size(size), rest::binary>> = stream
+        {bufs, au_metadata} = NALu.parse(frame)
 
-      case alignment do
-        :au ->
-          [%Buffer{payload: frame, metadata: Map.merge(in_metadata, au_metadata)}]
+        case alignment do
+          :au ->
+            [%Buffer{payload: frame, metadata: Map.merge(metadata, au_metadata)}]
 
-        :nal ->
-          Enum.map(bufs, fn b ->
-            Map.update!(
-              b,
-              :metadata,
-              &(&1 |> Map.merge(%{access_unit: au_metadata}) |> Map.merge(in_metadata))
-            )
-          end)
+          :nal ->
+            Enum.map(bufs, fn b ->
+              Map.update!(
+                b,
+                :metadata,
+                &(&1 |> Map.merge(%{access_unit: au_metadata}) |> Map.merge(metadata))
+              )
+            end)
+        end
+        ~> {&1, {new_metadata, rest}}
       end
-      ~> {&1, rest}
-    end)
+    )
   end
 end
