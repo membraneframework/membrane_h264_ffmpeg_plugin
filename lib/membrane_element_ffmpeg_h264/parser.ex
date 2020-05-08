@@ -5,18 +5,19 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   It receives buffers with binary payloads and splits them into frames.
   """
+  use Bunch
   use Membrane.Filter
-  alias __MODULE__.Native
+  use Membrane.Log
+  alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
   alias Membrane.Caps.Video.H264
-  use Membrane.Log
 
   def_input_pad :input,
     demand_unit: :buffers,
     caps: :any
 
   def_output_pad :output,
-    caps: {H264, stream_format: :byte_stream, alignment: :au}
+    caps: {H264, stream_format: :byte_stream}
 
   def_options framerate: [
                 type: :framerate,
@@ -41,6 +42,14 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
                 Picture Parameter Set NAL unit - if absent in the stream, should
                 be provided via this option.
                 """
+              ],
+              alignment: [
+                type: :atom,
+                spec: :au | :nal,
+                default: :au,
+                description: """
+                Stream units carried by each output buffer. See `t:Membrane.Caps.Video.H264.alignment_t`
+                """
               ]
 
   @impl true
@@ -49,7 +58,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
       parser_ref: nil,
       partial_frame: <<>>,
       first_frame_prefix: opts.sps <> opts.pps,
-      framerate: opts.framerate
+      framerate: opts.framerate,
+      metadata: nil
     }
 
     {:ok, state}
@@ -70,13 +80,14 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
+  def handle_process(:input, %Buffer{payload: payload, metadata: metadata}, ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
     payload = state.first_frame_prefix <> payload
 
-    with {:ok, sizes} <- Native.parse(payload, parser_ref),
-         {bufs, rest} <- gen_bufs_by_sizes(partial_frame <> payload, sizes) do
-      state = %{state | partial_frame: rest}
+    with {:ok, sizes, _flags} <- Native.parse(payload, parser_ref),
+         {bufs, {metadata, rest}} <-
+           gen_bufs(partial_frame <> payload, state.metadata, metadata, sizes, state.alignment) do
+      state = %{state | partial_frame: rest, metadata: if(rest == "", do: nil, else: metadata)}
       actions = [buffer: {:output, bufs}, redemand: :output]
 
       actions =
@@ -87,7 +98,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
             width: width,
             height: height,
             framerate: state.framerate,
-            alignment: :au,
+            alignment: state.alignment,
             stream_format: :byte_stream,
             profile: profile
           }
@@ -97,7 +108,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
           actions
         end
 
-      {{:ok, actions}, %{state | first_frame_prefix: <<>>}}
+      {{:ok, actions ++ [redemand: :output]}, %{state | first_frame_prefix: <<>>}}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -107,8 +118,9 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   def handle_end_of_stream(:input, _ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes} <- Native.flush(parser_ref) do
-      {bufs, rest} = gen_bufs_by_sizes(partial_frame, sizes)
+    with {:ok, sizes, _flags} <- Native.flush(parser_ref) do
+      {bufs, rest} =
+        gen_bufs(partial_frame, state.metadata, state.metadata, sizes, state.alignment)
 
       if rest != "" do
         warn("Discarding incomplete frame because of end of stream")
@@ -131,10 +143,29 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp gen_bufs_by_sizes(input, sizes) do
-    Enum.map_reduce(sizes, input, fn size, stream ->
-      <<frame::bytes-size(size), rest::binary>> = stream
-      {%Buffer{payload: frame}, rest}
-    end)
+  defp gen_bufs(input, old_metadata, new_metadata, sizes, alignment) do
+    Enum.flat_map_reduce(
+      sizes,
+      {old_metadata || new_metadata, input},
+      fn size, {metadata, stream} ->
+        <<frame::bytes-size(size), rest::binary>> = stream
+        {bufs, au_metadata} = NALu.parse(frame)
+
+        case alignment do
+          :au ->
+            [%Buffer{payload: frame, metadata: Map.merge(metadata, au_metadata)}]
+
+          :nal ->
+            Enum.map(bufs, fn b ->
+              Map.update!(
+                b,
+                :metadata,
+                &(&1 |> Map.merge(%{access_unit: au_metadata}) |> Map.merge(metadata))
+              )
+            end)
+        end
+        ~> {&1, {new_metadata, rest}}
+      end
+    )
   end
 end
