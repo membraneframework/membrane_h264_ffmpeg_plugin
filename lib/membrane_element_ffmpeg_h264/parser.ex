@@ -59,6 +59,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
       partial_frame: <<>>,
       first_frame_prefix: opts.sps <> opts.pps,
       framerate: opts.framerate,
+      alignment: opts.alignment,
       metadata: nil
     }
 
