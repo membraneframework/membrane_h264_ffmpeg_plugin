@@ -1,6 +1,5 @@
 defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
   use Bunch
-  alias Membrane.Buffer
 
   @nalu_types %{
                 0 => :unspecified,
@@ -29,40 +28,38 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
               |> Map.new()
 
   def parse(access_unit) do
-    {buffers, {au_info, _new_access_unit}} =
+    {[first_nalu | nalus], au_info} =
       access_unit
       |> extract_nalus()
-      |> Enum.map_reduce({%{key_frame?: false}, new_access_unit?: true}, &parse_nalu/2)
+      |> Enum.map_reduce(%{key_frame?: false}, &parse_nalu(&1, &2, access_unit))
 
-    {buffers, au_info}
+    nalus = [put_in(first_nalu, [:metadata, :new_access_unit], au_info) | nalus]
+    {nalus, au_info}
   end
 
   defp extract_nalus(access_unit) do
     access_unit
     |> :binary.matches([<<0, 0, 0, 1>>, <<0, 0, 1>>])
     |> Enum.chunk_every(2, 1, [{byte_size(access_unit), nil}])
-    |> Enum.map(fn [{from, _}, {to, _}] -> :binary.part(access_unit, from, to - from) end)
+    |> Enum.map(fn [{from, prefix_len}, {to, _}] ->
+      len = to - from
+      %{prefixed_poslen: {from, len}, unprefixed_poslen: {from + prefix_len, len - prefix_len}}
+    end)
   end
 
-  defp parse_nalu(nalu, {access_unit_info, new_access_unit?: new_au}) do
+  defp parse_nalu(nalu, access_unit_info, access_unit) do
     <<0::1, _nal_ref_idc::unsigned-integer-size(2), nal_unit_type::unsigned-integer-size(5),
-      _rest::bitstring>> = unprefix(nalu)
+      _rest::bitstring>> = :binary.part(access_unit, nalu.unprefixed_poslen)
 
     type = @nalu_types |> Map.fetch!(nal_unit_type)
 
-    access_unit_info =
-      access_unit_info
-      |> Map.merge(
-        case type do
-          :idr -> %{key_frame?: true}
-          _ -> %{}
-        end
-      )
+    new_au_info =
+      case type do
+        :idr -> %{key_frame?: true}
+        _ -> %{}
+      end
 
-    buffer = %Buffer{metadata: %{type: type, new_access_unit?: new_au}, payload: nalu}
-    {buffer, {access_unit_info, new_access_unit?: false}}
+    nalu = Map.put(nalu, :metadata, %{type: type})
+    {nalu, Map.merge(access_unit_info, new_au_info)}
   end
-
-  defp unprefix(<<0, 0, 0, 1, nalu::binary>>), do: nalu
-  defp unprefix(<<0, 0, 1, nalu::binary>>), do: nalu
 end

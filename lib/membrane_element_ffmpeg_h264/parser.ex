@@ -50,6 +50,10 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
                 description: """
                 Stream units carried by each output buffer. See `t:Membrane.Caps.Video.H264.alignment_t`
                 """
+              ],
+              attach_nalus?: [
+                type: :boolean,
+                default: true
               ]
 
   @impl true
@@ -58,8 +62,10 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
       parser_ref: nil,
       partial_frame: <<>>,
       first_frame_prefix: opts.sps <> opts.pps,
+      first_frame?: true,
       framerate: opts.framerate,
       alignment: opts.alignment,
+      attach_nalus?: opts.attach_nalus?,
       metadata: nil
     }
 
@@ -81,35 +87,26 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   end
 
   @impl true
+  def handle_process(:input, buffer, ctx, %{first_frame?: true} = state) do
+    buffer = Map.update!(buffer, :payload, &(state.first_frame_prefix <> &1))
+    handle_process(:input, buffer, ctx, %{state | first_frame?: false})
+  end
+
+  @impl true
   def handle_process(:input, %Buffer{payload: payload, metadata: metadata}, ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
     payload = state.first_frame_prefix <> payload
 
     with {:ok, sizes} <- Native.parse(payload, parser_ref),
-         {bufs, {metadata, rest}} <-
-           gen_bufs(partial_frame <> payload, state.metadata, metadata, sizes, state.alignment) do
-      state = %{state | partial_frame: rest, metadata: if(rest == "", do: nil, else: metadata)}
-      actions = [buffer: {:output, bufs}, redemand: :output]
-
-      actions =
+         {bufs, state} <- parse_access_units(partial_frame <> payload, sizes, metadata, state) do
+      caps =
         if ctx.pads.output.caps == nil and bufs != [] do
-          {:ok, width, height, profile} = Native.get_parsed_meta(parser_ref)
-
-          caps = %H264{
-            width: width,
-            height: height,
-            framerate: state.framerate,
-            alignment: state.alignment,
-            stream_format: :byte_stream,
-            profile: profile
-          }
-
-          [{:caps, {:output, caps}} | actions]
+          [caps: {:output, mk_caps(state)}]
         else
-          actions
+          []
         end
 
-      {{:ok, actions ++ [redemand: :output]}, %{state | first_frame_prefix: <<>>}}
+      {{:ok, caps ++ [buffer: {:output, bufs}, redemand: :output]}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -117,24 +114,14 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    %{parser_ref: parser_ref, partial_frame: partial_frame} = state
+    with {:ok, sizes} <- Native.flush(state.parser_ref) do
+      {bufs, state} = parse_access_units(state.partial_frame, sizes, state.metadata, state)
 
-    with {:ok, sizes} <- Native.flush(parser_ref) do
-      {bufs, rest} =
-        gen_bufs(partial_frame, state.metadata, state.metadata, sizes, state.alignment)
-
-      if rest != "" do
+      if state.partial_frame != <<>> do
         warn("Discarding incomplete frame because of end of stream")
       end
 
-      state = %{state | partial_frame: <<>>}
-
-      actions = [
-        buffer: {:output, bufs},
-        end_of_stream: :output,
-        notify: {:end_of_stream, :input}
-      ]
-
+      actions = [buffer: {:output, bufs}, end_of_stream: :output]
       {{:ok, actions}, state}
     end
   end
@@ -144,29 +131,56 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp gen_bufs(input, old_metadata, new_metadata, sizes, alignment) do
-    Enum.flat_map_reduce(
-      sizes,
-      {old_metadata || new_metadata, input},
-      fn size, {metadata, stream} ->
-        <<frame::bytes-size(size), rest::binary>> = stream
-        {bufs, au_metadata} = NALu.parse(frame)
+  defp parse_access_units(input, [], metadata, state) do
+    metadata = if state.partial_frame == <<>>, do: metadata, else: state.metadata
+    {[], %{state | metadata: metadata, partial_frame: input}}
+  end
 
-        case alignment do
-          :au ->
-            [%Buffer{payload: frame, metadata: Map.merge(metadata, au_metadata)}]
+  defp parse_access_units(input, [first_au_size | au_sizes], metadata, state) do
+    first_au_metadata = if state.partial_frame == <<>>, do: metadata, else: state.metadata
+    {first_au_buffers, input} = parse_access_unit(input, first_au_size, first_au_metadata, state)
 
-          :nal ->
-            Enum.map(bufs, fn b ->
-              Map.update!(
-                b,
-                :metadata,
-                &(&1 |> Map.merge(%{access_unit: au_metadata}) |> Map.merge(metadata))
-              )
-            end)
-        end
-        ~> {&1, {new_metadata, rest}}
+    {buffers, rest} =
+      Enum.flat_map_reduce(au_sizes, input, &parse_access_unit(&2, &1, metadata, state))
+
+    {first_au_buffers ++ buffers, %{state | metadata: metadata, partial_frame: rest}}
+  end
+
+  defp parse_access_unit(input, au_size, metadata, state) do
+    <<au::binary-size(au_size), rest::binary>> = input
+    {nalus, au_metadata} = NALu.parse(au)
+    au_metadata = Map.merge(metadata, au_metadata)
+
+    buffers =
+      case state do
+        %{alignment: :au, attach_nalus?: true} ->
+          [%Buffer{payload: au, metadata: Map.put(au_metadata, :nalus, nalus)}]
+
+        %{alignment: :au, attach_nalus?: false} ->
+          [%Buffer{payload: au, metadata: au_metadata}]
+
+        %{alignment: :nal} ->
+          Enum.map(nalus, fn nalu ->
+            %Buffer{
+              payload: :binary.part(au, nalu.prefixed_poslen),
+              metadata: Map.merge(metadata, nalu.metadata)
+            }
+          end)
       end
-    )
+
+    {buffers, rest}
+  end
+
+  defp mk_caps(state) do
+    {:ok, width, height, profile} = Native.get_parsed_meta(state.parser_ref)
+
+    %H264{
+      width: width,
+      height: height,
+      framerate: state.framerate,
+      alignment: state.alignment,
+      stream_format: :byte_stream,
+      profile: profile
+    }
   end
 end
