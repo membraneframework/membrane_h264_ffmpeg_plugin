@@ -1,13 +1,5 @@
 #include "parser.h"
 
-static int frame_flags(State *state) {
-  int flags = 0;
-  if (state->parser_ctx->key_frame) {
-    flags |= 1;
-  }
-  return flags;
-}
-
 void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
 
@@ -60,7 +52,6 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   int ret;
   size_t max_frames = 32, frames_cnt = 0;
   unsigned *out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
-  unsigned *out_frame_flags = unifex_alloc(max_frames * sizeof(unsigned));
 
   AVPacket *pkt = NULL;
   size_t old_size = payload->size;
@@ -96,18 +87,14 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
         max_frames *= 2;
         out_frame_sizes =
             unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
-        out_frame_flags =
-            unifex_realloc(out_frame_flags, max_frames * sizeof(unsigned));
       }
 
       out_frame_sizes[frames_cnt] = pkt->size;
-      out_frame_flags[frames_cnt] = frame_flags(state);
       frames_cnt++;
     }
   }
 
-  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt, out_frame_flags,
-                             frames_cnt);
+  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt);
 exit_parse_frames:
   unifex_free(out_frame_sizes);
   av_packet_free(&pkt);
@@ -161,7 +148,6 @@ UNIFEX_TERM flush(UnifexEnv *env, UnifexNifState *state) {
   int ret;
   uint8_t *data_ptr;
   unsigned out_frame_size;
-  unsigned out_frame_flags;
   ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &data_ptr,
                          (int *)&out_frame_size, NULL, 0, AV_NOPTS_VALUE,
                          AV_NOPTS_VALUE, 0);
@@ -171,10 +157,8 @@ UNIFEX_TERM flush(UnifexEnv *env, UnifexNifState *state) {
   }
 
   if (out_frame_size == 0) {
-    return flush_result_ok(env, NULL, 0, NULL, 0);
+    return flush_result_ok(env, NULL, 0);
   }
 
-  out_frame_flags = frame_flags(state);
-
-  return flush_result_ok(env, &out_frame_size, 1, &out_frame_flags, 1);
+  return flush_result_ok(env, &out_frame_size, 1);
 }

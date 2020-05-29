@@ -85,7 +85,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
     payload = state.first_frame_prefix <> payload
 
-    with {:ok, sizes, _flags} <- Native.parse(payload, parser_ref),
+    with {:ok, sizes} <- Native.parse(payload, parser_ref),
          {bufs, {metadata, rest}} <-
            gen_bufs(partial_frame <> payload, state.metadata, metadata, sizes, state.alignment) do
       state = %{state | partial_frame: rest, metadata: if(rest == "", do: nil, else: metadata)}
@@ -119,7 +119,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   def handle_end_of_stream(:input, _ctx, state) do
     %{parser_ref: parser_ref, partial_frame: partial_frame} = state
 
-    with {:ok, sizes, _flags} <- Native.flush(parser_ref) do
+    with {:ok, sizes} <- Native.flush(parser_ref) do
       {bufs, rest} =
         gen_bufs(partial_frame, state.metadata, state.metadata, sizes, state.alignment)
 
