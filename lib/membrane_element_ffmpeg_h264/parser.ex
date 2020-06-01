@@ -66,7 +66,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
       framerate: opts.framerate,
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
-      metadata: nil
+      metadata: nil,
+      timestamp: 0
     }
 
     {:ok, state}
@@ -94,11 +95,9 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
 
   @impl true
   def handle_process(:input, %Buffer{payload: payload, metadata: metadata}, ctx, state) do
-    %{parser_ref: parser_ref, partial_frame: partial_frame} = state
-    payload = state.first_frame_prefix <> payload
+    with {:ok, sizes} <- Native.parse(payload, state.parser_ref) do
+      {bufs, state} = parse_access_units(payload, sizes, metadata, state)
 
-    with {:ok, sizes} <- Native.parse(payload, parser_ref),
-         {bufs, state} <- parse_access_units(partial_frame <> payload, sizes, metadata, state) do
       caps =
         if ctx.pads.output.caps == nil and bufs != [] do
           [caps: {:output, mk_caps(state)}]
@@ -115,7 +114,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
     with {:ok, sizes} <- Native.flush(state.parser_ref) do
-      {bufs, state} = parse_access_units(state.partial_frame, sizes, state.metadata, state)
+      {bufs, state} = parse_access_units(<<>>, sizes, state.metadata, state)
 
       if state.partial_frame != <<>> do
         warn("Discarding incomplete frame because of end of stream")
@@ -131,23 +130,32 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp parse_access_units(input, [], metadata, state) do
-    metadata = if state.partial_frame == <<>>, do: metadata, else: state.metadata
-    {[], %{state | metadata: metadata, partial_frame: input}}
+  defp parse_access_units(input, au_sizes, metadata, %{partial_frame: <<>>} = state) do
+    state = update_metadata(metadata, state)
+    {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
+    {buffers, %{state | partial_frame: input}}
   end
 
-  defp parse_access_units(input, [first_au_size | au_sizes], metadata, state) do
-    first_au_metadata = if state.partial_frame == <<>>, do: metadata, else: state.metadata
-    {first_au_buffers, input} = parse_access_unit(input, first_au_size, first_au_metadata, state)
-
-    {buffers, rest} =
-      Enum.flat_map_reduce(au_sizes, input, &parse_access_unit(&2, &1, metadata, state))
-
-    {first_au_buffers ++ buffers, %{state | metadata: metadata, partial_frame: rest}}
+  defp parse_access_units(input, [], _metadata, state) do
+    {[], %{state | partial_frame: state.partial_frame <> input}}
   end
 
-  defp parse_access_unit(input, au_size, metadata, state) do
+  defp parse_access_units(input, [au_size | au_sizes], metadata, state) do
+    {first_au_buffers, input, state} =
+      do_parse_access_units(state.partial_frame <> input, [au_size], state.metadata, state, [])
+
+    state = update_metadata(metadata, state)
+    {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
+    {first_au_buffers ++ buffers, %{state | partial_frame: input}}
+  end
+
+  defp do_parse_access_units(input, [], _metadata, state, acc) do
+    {Enum.reverse(acc), input, state}
+  end
+
+  defp do_parse_access_units(input, [au_size | au_sizes], metadata, state, acc) do
     <<au::binary-size(au_size), rest::binary>> = input
+    metadata = Map.put(metadata, :timestamp, state.timestamp)
     {nalus, au_metadata} = NALu.parse(au)
     au_metadata = Map.merge(metadata, au_metadata)
 
@@ -168,7 +176,26 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
           end)
       end
 
-    {buffers, rest}
+    do_parse_access_units(rest, au_sizes, metadata, bump_timestamp(state), [buffers | acc])
+  end
+
+  defp update_metadata(%{timestamp: timestamp} = metadata, state) do
+    %{state | timestamp: timestamp, metadata: metadata}
+  end
+
+  defp update_metadata(metadata, state) do
+    %{state | metadata: metadata}
+  end
+
+  defp bump_timestamp(%{framerate: {0, _}} = state) do
+    state
+  end
+
+  defp bump_timestamp(state) do
+    use Ratio
+    %{timestamp: timestamp, framerate: {num, denom}} = state
+    timestamp = timestamp + Ratio.new(denom * Membrane.Time.second(), num)
+    %{state | timestamp: timestamp}
   end
 
   defp mk_caps(state) do
