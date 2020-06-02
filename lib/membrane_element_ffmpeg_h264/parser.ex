@@ -3,7 +3,15 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   Membrane element providing parser for H264 encoded video stream.
   Uses the parser provided by FFmpeg.
 
-  It receives buffers with binary payloads and splits them into frames.
+  By default, this parser splits the stream into h264 access units,
+  each of which being a sequence of NAL units corresponding to one
+  video frame, and equips them with the following metadata entries
+  under `:h264` key:
+  - `key_frame?: boolean` - determines whether the frame is a h264
+    I frame.
+
+  Setting custom packetization options affects metadata, see `alignment`
+  and `attach_nalus?` options for details.
   """
   use Bunch
   use Membrane.Filter
@@ -48,12 +56,28 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
                 spec: :au | :nal,
                 default: :au,
                 description: """
-                Stream units carried by each output buffer. See `t:Membrane.Caps.Video.H264.alignment_t`
+                Stream units carried by each output buffer. See `t:Membrane.Caps.Video.H264.alignment_t`.
+
+                If alignment is `:nal`, the following metadata entries are added:
+                - `type` - h264 nalu type
+                - `new_access_unit: access_unit_metadata` - added whenever the new access unit starts.
+                  `access_unit_metadata` is the metadata that would be merged into the buffer metadata
+                   normally (if `alignment` was `:au`).
                 """
               ],
               attach_nalus?: [
                 type: :boolean,
-                default: true
+                default: false,
+                description: """
+                Determines whether to attaches NAL units list to the metadata when `alignment` option
+                is set to `:au`.
+
+                The list consists of maps with the following entries:
+                - `prefixed_poslen: {pos, len}` - position and length of the NALu within the payload
+                - `unprefixed_poslen: {pos, len}` - as above, but omits Annex B prefix
+                - `metadata: metadata` - metadata that would be merged into the buffer metadata
+                  if `alignment` was `:nal`.
+                """
               ]
 
   @impl true

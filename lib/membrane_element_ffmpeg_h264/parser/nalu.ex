@@ -1,4 +1,5 @@
 defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
+  @moduledoc false
   use Bunch
 
   @nalu_types %{
