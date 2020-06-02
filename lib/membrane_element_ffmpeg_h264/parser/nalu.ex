@@ -33,8 +33,8 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
       |> extract_nalus()
       |> Enum.map_reduce(%{key_frame?: false}, &parse_nalu(&1, &2, access_unit))
 
-    nalus = [put_in(first_nalu, [:metadata, :new_access_unit], au_info) | nalus]
-    {nalus, au_info}
+    nalus = [put_in(first_nalu, [:metadata, :h264, :new_access_unit], au_info) | nalus]
+    {nalus, %{h264: au_info}}
   end
 
   defp extract_nalus(access_unit) do
@@ -59,7 +59,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
         _ -> %{}
       end
 
-    nalu = Map.put(nalu, :metadata, %{type: type})
+    nalu = Map.put(nalu, :metadata, %{h264: %{type: type}})
     {nalu, Map.merge(access_unit_info, new_au_info)}
   end
 end

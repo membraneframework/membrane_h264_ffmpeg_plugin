@@ -162,7 +162,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
     buffers =
       case state do
         %{alignment: :au, attach_nalus?: true} ->
-          [%Buffer{payload: au, metadata: Map.put(au_metadata, :nalus, nalus)}]
+          [%Buffer{payload: au, metadata: put_in(au_metadata, [:h264, :nalus], nalus)}]
 
         %{alignment: :au, attach_nalus?: false} ->
           [%Buffer{payload: au, metadata: au_metadata}]
