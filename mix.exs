@@ -65,7 +65,8 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
       {:unifex, "~> 0.2.0"},
       {:bunch, "~> 1.2"},
       {:membrane_element_rawvideo_parser, "~> 0.2.0", only: [:dev, :test]},
-      {:membrane_element_file, "~> 0.3.0", only: [:dev, :test]}
+      {:membrane_element_file, "~> 0.3.0", only: [:dev, :test]},
+      {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false}
     ]
   end
 end
