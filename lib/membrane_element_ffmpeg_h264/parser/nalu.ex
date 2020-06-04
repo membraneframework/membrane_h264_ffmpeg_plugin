@@ -2,6 +2,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
   @moduledoc false
   use Bunch
 
+  # See https://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/
   @nalu_types %{
                 0 => :unspecified,
                 1 => :non_idr,
@@ -25,7 +26,10 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
                 (21..23) => :reserved,
                 (24..31) => :unspecified
               }
-              |> Enum.flat_map(fn {k, v} -> k |> Bunch.listify() |> Enum.map(&{&1, v}) end)
+              |> Enum.flat_map(fn
+                {k, v} when is_integer(k) -> [{k, v}]
+                {k, v} -> Enum.map(k, &{&1, v})
+              end)
               |> Map.new()
 
   def parse(access_unit) do
@@ -54,11 +58,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
 
     type = @nalu_types |> Map.fetch!(nal_unit_type)
 
-    new_au_info =
-      case type do
-        :idr -> %{key_frame?: true}
-        _ -> %{}
-      end
+    new_au_info = if type == :idr, do: %{key_frame?: true}, else: %{}
 
     nalu = Map.put(nalu, :metadata, %{h264: %{type: type}})
     {nalu, Map.merge(access_unit_info, new_au_info)}
