@@ -4,7 +4,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
   Uses the parser provided by FFmpeg.
 
   By default, this parser splits the stream into h264 access units,
-  each of which being a sequence of NAL units corresponding to one
+  each of which is a sequence of NAL units corresponding to one
   video frame, and equips them with the following metadata entries
   under `:h264` key:
   - `key_frame?: boolean` - determines whether the frame is a h264
