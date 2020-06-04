@@ -70,13 +70,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
                 default: false,
                 description: """
                 Determines whether to attach NAL units list to the metadata when `alignment` option
-                is set to `:au`.
-
-                The list consists of maps with the following entries:
-                - `prefixed_poslen: {pos, len}` - position and length of the NALu within the payload
-                - `unprefixed_poslen: {pos, len}` - as above, but omits Annex B prefix
-                - `metadata: metadata` - metadata that would be merged into the buffer metadata
-                  if `alignment` was `:nal`.
+                is set to `:au`. For details see `t:Membrane.Caps.Video.H264.nalu_in_metadata_t/0`.
                 """
               ]
 
@@ -230,6 +224,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
       height: height,
       framerate: state.framerate,
       alignment: state.alignment,
+      nalu_in_metadata?: state.attach_nalus?,
       stream_format: :byte_stream,
       profile: profile
     }

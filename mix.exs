@@ -59,7 +59,7 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
       {:ex_doc, "~> 0.21", only: :dev, runtime: false},
       {:membrane_core, "~> 0.5.0"},
       {:membrane_common_c, "~> 0.3.0"},
-      {:membrane_caps_video_h264, "~> 0.1.0"},
+      {:membrane_caps_video_h264, "~> 0.2.0"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
       {:bundlex, "~> 0.2.0"},
       {:unifex, "~> 0.2.0"},
