@@ -69,7 +69,7 @@ defmodule Membrane.Element.FFmpeg.H264.Parser do
                 type: :boolean,
                 default: false,
                 description: """
-                Determines whether to attaches NAL units list to the metadata when `alignment` option
+                Determines whether to attach NAL units list to the metadata when `alignment` option
                 is set to `:au`.
 
                 The list consists of maps with the following entries:
