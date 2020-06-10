@@ -141,8 +141,7 @@ UNIFEX_TERM get_parsed_meta(UnifexEnv *env, UnifexNifState *state) {
   }
 
   return get_parsed_meta_result_ok(env, state->parser_ctx->width,
-                                   state->parser_ctx->height,
-                                   profile_atom);
+                                   state->parser_ctx->height, profile_atom);
 }
 
 UNIFEX_TERM flush(UnifexEnv *env, UnifexNifState *state) {

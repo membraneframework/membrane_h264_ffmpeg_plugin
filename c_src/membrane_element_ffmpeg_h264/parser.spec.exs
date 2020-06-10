@@ -8,4 +8,6 @@ spec parse(payload, state) ::
 
 spec get_parsed_meta(state) :: {:ok :: label, width :: int, height :: int, profile :: atom}
 
-spec flush(state) :: {:ok :: label, frame_sizes :: [unsigned]} | {:error :: label, reason :: atom}
+spec flush(state) ::
+       {:ok :: label, frame_sizes :: [unsigned]}
+       | {:error :: label, reason :: atom}
