@@ -1,5 +1,7 @@
 module Membrane.Element.FFmpeg.H264.Encoder.Native
 
+state_type "State"
+
 spec create(
        width :: int,
        height :: int,

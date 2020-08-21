@@ -8,8 +8,6 @@
 typedef struct _h264_parser_state {
   AVCodecContext *codec_ctx;
   AVCodecParserContext *parser_ctx;
-} UnifexNifState;
-
-typedef UnifexNifState State;
+} State;
 
 #include "_generated/parser.h"

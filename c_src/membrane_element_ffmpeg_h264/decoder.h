@@ -7,9 +7,7 @@
 
 typedef struct _h264_decoder_state {
   AVCodecContext *codec_ctx;
-} UnifexNifState;
-
-typedef UnifexNifState State;
+} State;
 
 #include "_generated/decoder.h"
 

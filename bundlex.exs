@@ -10,19 +10,19 @@ defmodule Membrane.Element.FFmpeg.H264.BundlexProject do
   def nifs(_platform) do
     [
       parser: [
-        deps: [unifex: :unifex],
-        sources: ["_generated/parser.c", "parser.c"],
-        pkg_configs: ["libavcodec", "libavutil"]
+        sources: ["parser.c"],
+        pkg_configs: ["libavcodec", "libavutil"],
+        preprocessor: Unifex
       ],
       decoder: [
-        deps: [unifex: :unifex],
-        sources: ["_generated/decoder.c", "decoder.c"],
-        pkg_configs: ["libavcodec", "libavutil"]
+        sources: ["decoder.c"],
+        pkg_configs: ["libavcodec", "libavutil"],
+        preprocessor: Unifex
       ],
       encoder: [
-        deps: [unifex: :unifex],
-        sources: ["_generated/encoder.c", "encoder.c"],
-        pkg_configs: ["libavcodec", "libavutil"]
+        sources: ["encoder.c"],
+        pkg_configs: ["libavcodec", "libavutil"],
+        preprocessor: Unifex
       ]
     ]
   end

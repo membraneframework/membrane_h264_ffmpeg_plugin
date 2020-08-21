@@ -145,8 +145,8 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   return res_term;
 }
 
-UNIFEX_TERM get_metadata(UnifexEnv* env, UnifexNifState* state) {
-  char * pix_format;
+UNIFEX_TERM get_metadata(UnifexEnv *env, State *state) {
+  char *pix_format;
   switch (state->codec_ctx->pix_fmt) {
   case AV_PIX_FMT_YUVJ420P:
   case AV_PIX_FMT_YUV420P:
@@ -159,5 +159,6 @@ UNIFEX_TERM get_metadata(UnifexEnv* env, UnifexNifState* state) {
   default:
     return get_metadata_result_error_pix_fmt(env);
   }
-  return get_metadata_result_ok(env, state->codec_ctx->width, state->codec_ctx->height, pix_format);
+  return get_metadata_result_ok(env, state->codec_ctx->width,
+                                state->codec_ctx->height, pix_format);
 }

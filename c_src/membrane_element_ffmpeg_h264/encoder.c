@@ -8,14 +8,17 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
   }
 }
 
-UNIFEX_TERM create(UnifexEnv* env, int width, int height, char* pix_fmt, char* preset, char* profile, int framerate_num, int framerate_denom, int crf) {
+UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
+                   char *preset, char *profile, int framerate_num,
+                   int framerate_denom, int crf) {
   UNIFEX_TERM res;
   AVDictionary *params = NULL;
   State *state = unifex_alloc_state(env);
   state->codec_ctx = NULL;
   state->last_pts = 0;
 
-  //TODO: Consider using av_log_set_callback to pass messages to membrane logger
+  // TODO: Consider using av_log_set_callback to pass messages to membrane
+  // logger
   av_log_set_level(AV_LOG_QUIET);
 
 #if (LIBAVCODEC_VERSION_MAJOR < 58)
@@ -70,8 +73,10 @@ exit_create:
   return res;
 }
 
-UNIFEX_TERM get_frame_size(UnifexEnv* env, State * state) {
-  int frame_size = av_image_get_buffer_size(state->codec_ctx->pix_fmt, state->codec_ctx->width, state->codec_ctx->height, 1);
+UNIFEX_TERM get_frame_size(UnifexEnv *env, State *state) {
+  int frame_size = av_image_get_buffer_size(state->codec_ctx->pix_fmt,
+                                            state->codec_ctx->width,
+                                            state->codec_ctx->height, 1);
 
   if (frame_size < 0) {
     return get_frame_size_result_error(env);
@@ -80,8 +85,10 @@ UNIFEX_TERM get_frame_size(UnifexEnv* env, State * state) {
   return get_frame_size_result_ok(env, frame_size);
 }
 
-static int get_frames(UnifexEnv * env, AVFrame * frame, UnifexPayload ***ret_frames, int * max_frames, int * frame_cnt, State * state) {
-  AVPacket * pkt = av_packet_alloc();
+static int get_frames(UnifexEnv *env, AVFrame *frame,
+                      UnifexPayload ***ret_frames, int *max_frames,
+                      int *frame_cnt, State *state) {
+  AVPacket *pkt = av_packet_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
 
   int ret = avcodec_send_frame(state->codec_ctx, frame);
@@ -102,7 +109,8 @@ static int get_frames(UnifexEnv * env, AVFrame * frame, UnifexPayload ***ret_fra
       frames = unifex_realloc(frames, (*max_frames) * sizeof(*frames));
     }
 
-    frames[*frame_cnt] = unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, pkt->size);
+    frames[*frame_cnt] =
+        unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, pkt->size);
     memcpy(frames[*frame_cnt]->data, pkt->data, pkt->size);
     (*frame_cnt)++;
 
@@ -115,13 +123,13 @@ exit_get_frames:
   return ret;
 }
 
-UNIFEX_TERM encode(UnifexEnv* env, UnifexPayload * payload, UnifexNifState* state) {
+UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, State *state) {
   UNIFEX_TERM res_term;
   int res = 0;
   int max_frames = 16, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
 
-  AVFrame * frame = av_frame_alloc();
+  AVFrame *frame = av_frame_alloc();
   frame->format = state->codec_ctx->pix_fmt;
   frame->width = state->codec_ctx->width;
   frame->height = state->codec_ctx->height;
@@ -152,7 +160,7 @@ UNIFEX_TERM encode(UnifexEnv* env, UnifexPayload * payload, UnifexNifState* stat
   return res_term;
 }
 
-UNIFEX_TERM flush(UnifexEnv* env, UnifexNifState* state) {
+UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   UNIFEX_TERM res_term;
   int max_frames = 16, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
