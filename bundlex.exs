@@ -3,23 +3,26 @@ defmodule Membrane.Element.FFmpeg.H264.BundlexProject do
 
   def project() do
     [
-      nifs: nifs(Bundlex.platform())
+      natives: natives()
     ]
   end
 
-  def nifs(_platform) do
+  defp natives() do
     [
       parser: [
+        interface: :nif,
         sources: ["parser.c"],
         pkg_configs: ["libavcodec", "libavutil"],
         preprocessor: Unifex
       ],
       decoder: [
+        interface: :nif,
         sources: ["decoder.c"],
         pkg_configs: ["libavcodec", "libavutil"],
         preprocessor: Unifex
       ],
       encoder: [
+        interface: :nif,
         sources: ["encoder.c"],
         pkg_configs: ["libavcodec", "libavutil"],
         preprocessor: Unifex
