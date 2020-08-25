@@ -102,7 +102,7 @@ exit_parse_frames:
   return res_term;
 }
 
-UNIFEX_TERM get_parsed_meta(UnifexEnv *env, UnifexNifState *state) {
+UNIFEX_TERM get_parsed_meta(UnifexEnv *env, State *state) {
   char *profile_atom;
 
   switch (state->codec_ctx->profile) {
@@ -144,7 +144,7 @@ UNIFEX_TERM get_parsed_meta(UnifexEnv *env, UnifexNifState *state) {
                                    state->parser_ctx->height, profile_atom);
 }
 
-UNIFEX_TERM flush(UnifexEnv *env, UnifexNifState *state) {
+UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   int ret;
   uint8_t *data_ptr;
   unsigned out_frame_size;

@@ -1,5 +1,7 @@
 module Membrane.Element.FFmpeg.H264.Parser.Native
 
+state_type "State"
+
 spec create() :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
 spec parse(payload, state) ::
