@@ -1,4 +1,4 @@
-defmodule Membrane.Element.FFmpeg.H264.Parser do
+defmodule Membrane.H264.FFmpeg.Parser do
   @moduledoc """
   Membrane element providing parser for H264 encoded video stream.
   Uses the parser provided by FFmpeg.

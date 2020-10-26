@@ -1,12 +1,15 @@
-# Membrane Multimedia Framework: FFmpeg H264 Element
+# Membrane H264 FFmpeg plugin
 
-[![CircleCI](https://circleci.com/gh/membraneframework/membrane-element-ffmpeg-h264.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane-element-ffmpeg-h264)
+[![Hex.pm](https://img.shields.io/hexpm/v/membrane_h264_ffmpeg_plugin.svg)](https://hex.pm/packages/membrane_h264_ffmpeg_plugin)
+[![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_h264_ffmpeg_plugin/)
+[![CircleCI](https://circleci.com/gh/membraneframework/membrane_h264_ffmpeg_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_h264_ffmpeg_plugin)
 
-This package provides [Membrane Multimedia Framework](https://membraneframework.org)
-elements that can be used to encode, parse and decode H264 video streams using [ffmpeg](https://www.ffmpeg.org)
-and [x264](https://www.videolan.org/developers/x264.html)
+This package provides H264 video parser, decoder and encoder, based on [ffmpeg](https://www.ffmpeg.org)
+and [x264](https://www.videolan.org/developers/x264.html).
 
-Documentation is available at [HexDocs](https://hexdocs.pm/membrane_element_ffmpeg_h264/)
+It is a part of the [Membrane Multimedia Framework](https://membraneframework.org)
+
+Documentation is available at [HexDocs](https://hexdocs.pm/membrane_h264_ffmpeg_plugin/)
 
 
 ## Installation
@@ -14,7 +17,7 @@ Documentation is available at [HexDocs](https://hexdocs.pm/membrane_element_ffmp
 Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 ```elixir
-{:membrane_element_ffmpeg_h264, "~> 0.4.0"}
+{:membrane_h264_ffmpeg_plugin, "~> 0.4.0"}
 ```
 
 You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.

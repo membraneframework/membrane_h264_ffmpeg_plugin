@@ -1,20 +1,20 @@
-defmodule Membrane.Element.FFmpeg.H264.MixProject do
+defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   use Mix.Project
 
   @version "0.4.0"
-  @github_url "https://github.com/membraneframework/membrane-element-ffmpeg-h264"
+  @github_url "https://github.com/membraneframework/membrane_h264_ffmpeg_plugin"
 
   def project do
     [
-      app: :membrane_element_ffmpeg_h264,
+      app: :membrane_h264_ffmpeg_plugin,
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
       elixir: "~> 1.7",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
-      description: "Membrane Multimedia Framework (FFmpeg H264 Element)",
+      description: "Membrane H264 parser, decoder and encoder based on FFmpeg and x264",
       package: package(),
-      name: "Membrane Element: H264",
+      name: "Membrane H264 FFmpeg plugin",
       source_url: @github_url,
       docs: docs(),
       homepage_url: "https://membraneframework.org",
@@ -37,7 +37,7 @@ defmodule Membrane.Element.FFmpeg.H264.MixProject do
       extras: ["README.md"],
       source_ref: "v#{@version}",
       nest_modules_by_prefix: [
-        Membrane.Element.FFmpeg.H264
+        Membrane.H264.FFmpeg
       ]
     ]
   end

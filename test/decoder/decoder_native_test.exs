@@ -1,7 +1,7 @@
 defmodule Decoder.NativeTest do
   use ExUnit.Case, async: true
   alias Membrane.Payload
-  alias Membrane.Element.FFmpeg.H264.Decoder.Native, as: Dec
+  alias Membrane.H264.FFmpeg.Decoder.Native, as: Dec
 
   test "Decode 1 240p frame" do
     in_path = "../fixtures/input-100-240p.h264" |> Path.expand(__DIR__)

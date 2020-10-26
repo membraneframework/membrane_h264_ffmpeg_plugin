@@ -1,6 +1,6 @@
 defmodule Parser.NativeTest do
   use ExUnit.Case, async: true
-  alias Membrane.Element.FFmpeg.H264.Parser.Native, as: Parser
+  alias Membrane.H264.FFmpeg.Parser.Native, as: Parser
 
   test "Decode 1 240p frame" do
     in_path = "../fixtures/input-100-240p.h264" |> Path.expand(__DIR__)

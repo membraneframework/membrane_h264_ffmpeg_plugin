@@ -1,4 +1,4 @@
-defmodule Membrane.Element.FFmpeg.H264.Encoder do
+defmodule Membrane.H264.FFmpeg.Encoder do
   @moduledoc """
   Membrane element that encodes raw video frames to H264 format.
 
