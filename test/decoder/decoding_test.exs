@@ -2,6 +2,7 @@ defmodule DecoderTest do
   use ExUnit.Case
   import Membrane.Testing.Assertions
   alias Membrane.Element
+  alias Membrane.H264
   alias Membrane.Testing.Pipeline
 
   def prepare_paths(filename) do
@@ -17,8 +18,8 @@ defmodule DecoderTest do
     Pipeline.start_link(%Pipeline.Options{
       elements: [
         file_src: %Element.File.Source{chunk_size: 40_960, location: in_path},
-        parser: Element.FFmpeg.H264.Parser,
-        decoder: Element.FFmpeg.H264.Decoder,
+        parser: H264.FFmpeg.Parser,
+        decoder: H264.FFmpeg.Decoder,
         sink: %Element.File.Sink{location: out_path}
       ]
     })

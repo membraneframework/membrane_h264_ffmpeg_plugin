@@ -1,4 +1,4 @@
-module Membrane.Element.FFmpeg.H264.Encoder.Native
+module Membrane.H264.FFmpeg.Encoder.Native
 
 state_type "State"
 

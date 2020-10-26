@@ -1,4 +1,4 @@
-defmodule Membrane.Element.FFmpeg.H264.BundlexProject do
+defmodule Membrane.H264.FFmpeg.BundlexProject do
   use Bundlex.Project
 
   def project() do

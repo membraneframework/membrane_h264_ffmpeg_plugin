@@ -1,4 +1,4 @@
-defmodule Membrane.Element.FFmpeg.H264.Parser.NALu do
+defmodule Membrane.H264.FFmpeg.Parser.NALu do
   @moduledoc false
   use Bunch
 
