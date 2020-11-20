@@ -130,6 +130,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
+  def handle_caps(:input, _caps, _ctx, state) do
+    # ignoring caps, new ones will be generated in handle_process
+    {:ok, state}
+  end
+
+  @impl true
   def handle_end_of_stream(:input, _ctx, state) do
     with {:ok, sizes} <- Native.flush(state.parser_ref) do
       {bufs, state} = parse_access_units(<<>>, sizes, state.metadata, state)
