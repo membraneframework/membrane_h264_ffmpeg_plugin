@@ -17,10 +17,10 @@ defmodule DecoderTest do
   def make_pipeline(in_path, out_path) do
     Pipeline.start_link(%Pipeline.Options{
       elements: [
-        file_src: %Element.File.Source{chunk_size: 40_960, location: in_path},
+        file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
         parser: H264.FFmpeg.Parser,
         decoder: H264.FFmpeg.Decoder,
-        sink: %Element.File.Sink{location: out_path}
+        sink: %Membrane.File.Sink{location: out_path}
       ]
     })
   end
