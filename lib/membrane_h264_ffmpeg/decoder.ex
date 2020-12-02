@@ -4,7 +4,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   The element expects the data for each frame (Access Unit) to be received in a separate buffer,
   so the parser (`Membrane.H264.FFmpeg.Parser`) may be required in a pipeline before
-  decoder (e.g. when input is read from `Membrane.Element.File.Source`).
+  decoder (e.g. when input is read from `Membrane.File.Source`).
   """
   use Membrane.Filter
   alias __MODULE__.Native

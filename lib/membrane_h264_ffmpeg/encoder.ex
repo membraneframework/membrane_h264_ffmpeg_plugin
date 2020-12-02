@@ -4,7 +4,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   The element expects each frame to be received in a separate buffer, so the parser
   (`Membrane.Element.RawVideo.Parser`) may be required in a pipeline before
-  the encoder (e.g. when input is read from `Membrane.Element.File.Source`).
+  the encoder (e.g. when input is read from `Membrane.File.Source`).
 
   Additionaly, the encoder has to receive proper caps with picture format and dimensions
   before any encoding takes place.
