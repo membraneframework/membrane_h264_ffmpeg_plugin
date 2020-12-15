@@ -63,6 +63,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 - `new_access_unit: access_unit_metadata` - added whenever the new access unit starts.
                   `access_unit_metadata` is the metadata that would be merged into the buffer metadata
                    normally (if `alignment` was `:au`).
+                - `end_access_unit: true` - added for each NALu that ends an access unit.
                 """
               ],
               attach_nalus?: [
