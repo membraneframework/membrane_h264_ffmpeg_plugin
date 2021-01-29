@@ -86,7 +86,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
       metadata: nil,
-      timestamp: 0
+      timestamp: 0,
+      wait_for_keyframe?: true
     }
 
     {:ok, state}
@@ -99,6 +100,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
     else
       {:error, reason} -> {{:error, reason}, state}
     end
+  end
+
+  @impl true
+  def handle_prepared_to_playing(_ctx, state) do
+    {{:ok, event: {:input, %Membrane.KeyframeRequestEvent{}}}, state}
   end
 
   @impl true
@@ -183,9 +189,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
     metadata = Map.put(metadata, :timestamp, state.timestamp)
     {nalus, au_metadata} = NALu.parse(au)
     au_metadata = Map.merge(metadata, au_metadata)
+    state = Map.update!(state, :wait_for_keyframe?, &(&1 and not au_metadata.h264.key_frame?))
 
     buffers =
       case state do
+        %{wait_for_keyframe?: true} ->
+          []
+
         %{alignment: :au, attach_nalus?: true} ->
           [%Buffer{payload: au, metadata: put_in(au_metadata, [:h264, :nalus], nalus)}]
 
