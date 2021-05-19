@@ -73,6 +73,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 Determines whether to attach NAL units list to the metadata when `alignment` option
                 is set to `:au`. For details see `t:Membrane.Caps.Video.H264.nalu_in_metadata_t/0`.
                 """
+              ],
+              skip_until_keyframe?: [
+                type: :boolean,
+                default: false,
+                description: """
+                Determines whether to drop the stream until the first key frame is received.
+                """
               ]
 
   @impl true
@@ -81,10 +88,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
       parser_ref: nil,
       partial_frame: <<>>,
       first_frame_prefix: opts.sps <> opts.pps,
-      first_frame?: true,
       framerate: opts.framerate,
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
+      skip_until_keyframe?: opts.skip_until_keyframe?,
       metadata: nil,
       timestamp: 0
     }
@@ -102,18 +109,29 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
+  def handle_prepared_to_playing(_ctx, %{skip_until_keyframe: true} = state) do
+    {{:ok, event: {:input, %Membrane.KeyframeRequestEvent{}}}, state}
+  end
+
+  @impl true
+  def handle_prepared_to_playing(_ctx, state) do
+    {:ok, state}
+  end
+
+  @impl true
   def handle_demand(:output, _size, :buffers, _ctx, state) do
     {{:ok, demand: :input}, state}
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, %{first_frame?: true} = state) do
-    buffer = Map.update!(buffer, :payload, &(state.first_frame_prefix <> &1))
-    handle_process(:input, buffer, ctx, %{state | first_frame?: false})
-  end
-
-  @impl true
   def handle_process(:input, %Buffer{payload: payload, metadata: metadata}, ctx, state) do
+    payload =
+      if ctx.pads.output.start_of_stream? do
+        payload
+      else
+        state.first_frame_prefix <> payload
+      end
+
     with {:ok, sizes} <- Native.parse(payload, state.parser_ref) do
       {bufs, state} = parse_access_units(payload, sizes, metadata, state)
 
@@ -183,9 +201,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
     metadata = Map.put(metadata, :timestamp, state.timestamp)
     {nalus, au_metadata} = NALu.parse(au)
     au_metadata = Map.merge(metadata, au_metadata)
+    state = Map.update!(state, :skip_until_keyframe?, &(&1 and not au_metadata.h264.key_frame?))
 
     buffers =
       case state do
+        %{skip_until_keyframe?: true} ->
+          []
+
         %{alignment: :au, attach_nalus?: true} ->
           [%Buffer{payload: au, metadata: put_in(au_metadata, [:h264, :nalus], nalus)}]
 
