@@ -1,6 +1,5 @@
 defmodule TranscodingTest do
   import Membrane.Testing.Assertions
-  alias Membrane.Element
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
   use ExUnit.Case
