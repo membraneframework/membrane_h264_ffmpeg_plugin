@@ -7,8 +7,8 @@ defmodule Encoder.NativeTest do
 
     assert {:ok, file} = File.read(in_path)
     assert {:ok, ref} = Enc.create(320, 240, :I420, :fast, :high, 30, 1, 23)
-    assert <<frame::bytes-size(115_200), tail::binary>> = file
-    assert {:ok, frames} = Enc.encode(frame, ref)
-    assert {:ok, [frame]} = Enc.flush(ref)
+    assert <<frame::bytes-size(115_200), _tail::binary>> = file
+    assert {:ok, _frames} = Enc.encode(frame, ref)
+    assert {:ok, [_frame]} = Enc.flush(ref)
   end
 end
