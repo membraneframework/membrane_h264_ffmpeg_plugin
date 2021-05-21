@@ -13,6 +13,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   Setting custom packetization options affects metadata, see `alignment`
   and `attach_nalus?` options for details.
   """
+  require Membrane.Logger
   use Bunch
   use Membrane.Filter
   use Membrane.Log
@@ -201,6 +202,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     metadata = Map.put(metadata, :timestamp, state.timestamp)
     {nalus, au_metadata} = NALu.parse(au)
     au_metadata = Map.merge(metadata, au_metadata)
+    Membrane.Logger.warn("#{inspect(au_metadata.h264.key_frame?)}")
     state = Map.update!(state, :skip_until_keyframe?, &(&1 and not au_metadata.h264.key_frame?))
 
     buffers =
