@@ -1,7 +1,7 @@
 defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   use Mix.Project
 
-  @version "0.7.0"
+  @version "0.8.0"
   @github_url "https://github.com/membraneframework/membrane_h264_ffmpeg_plugin"
 
   def project do
@@ -58,10 +58,10 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
     [
       {:ex_doc, "~> 0.21", only: :dev, runtime: false},
       {:membrane_core, "~> 0.6.0"},
-      {:membrane_common_c, "~> 0.5.0"},
+      {:membrane_common_c, "~> 0.6.0"},
       {:membrane_caps_video_h264, "~> 0.2.0"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
-      {:unifex, "~> 0.3.0"},
+      {:unifex, "~> 0.4.0"},
       {:bunch, "~> 1.2"},
       {:membrane_element_rawvideo_parser, "~> 0.3.0", only: [:dev, :test]},
       {:membrane_file_plugin, "~> 0.5.0", only: [:dev, :test]},
