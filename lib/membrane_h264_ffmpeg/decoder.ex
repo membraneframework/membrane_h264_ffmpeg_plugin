@@ -12,6 +12,14 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   alias Membrane.Caps.Video.{H264, Raw}
   use Bunch
 
+  def_options add_dts: [
+                spec: boolean(),
+                default: false,
+                description: """
+                Setting this flag to true causes decoder to add presentation timestamp (pts) taken from buffer timestamp into the AVPacket and in consequence to the produced frame.
+                """
+              ]
+
   def_input_pad :input,
     demand_unit: :buffers,
     caps: {H264, stream_format: :byte_stream, alignment: :au}
@@ -21,7 +29,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_init(_opts) do
-    {:ok, %{decoder_ref: nil}}
+    {:ok, %{decoder_ref: nil, count: 0}}
   end
 
   @impl true
@@ -42,17 +50,22 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
     %{decoder_ref: decoder_ref} = state
 
-    with {:ok, frames} <- Native.decode(payload, decoder_ref),
+    with {:ok, best_effort_ts, frames} <-
+           Native.decode_with_dts(payload, state.count, decoder_ref),
          bufs = wrap_frames(frames),
          in_caps = ctx.pads.input.caps,
          out_caps = ctx.pads.output.caps,
          {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
       # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
       # but it is noop otherwise, so there is no point in implementing special logic for that case
+      IO.inspect(best_effort_ts, label: "$$$1")
+      IO.inspect(frames, label: "$$$2")
       actions = Enum.concat([caps, bufs, [redemand: :output]])
-      {{:ok, actions}, state}
+      # {{:ok, actions}, %{state | count: state.count + 10 + :rand.uniform(40)}}
+      {{:ok, actions}, %{state | count: state.count + 1}}
     else
-      {:error, reason} -> {{:error, reason}, state}
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
@@ -81,7 +94,11 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   defp wrap_frames([]), do: []
 
   defp wrap_frames(frames) do
-    frames |> Enum.map(fn frame -> %Buffer{payload: frame} end) ~> [buffer: {:output, &1}]
+    frames
+    |> Enum.map(fn frame ->
+      %Buffer{payload: frame}
+    end)
+    ~> [buffer: {:output, &1}]
   end
 
   defp get_caps_if_needed(input_caps, nil, decoder_ref) do

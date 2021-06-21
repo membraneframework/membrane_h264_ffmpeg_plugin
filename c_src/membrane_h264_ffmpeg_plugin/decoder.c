@@ -40,10 +40,11 @@ exit_create:
 }
 
 static int get_frames(UnifexEnv *env, AVPacket *pkt,
-                      UnifexPayload ***ret_frames, int *max_frames,
+                      UnifexPayload ***ret_frames, int *best_effort_timestamps, int *max_frames,
                       int *frame_cnt, State *state) {
   AVFrame *frame = av_frame_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
+  best_effort_timestamps = unifex_alloc((*max_frames) * sizeof(int));
 
   int ret = avcodec_send_packet(state->codec_ctx, pkt);
   if (ret < 0) {
@@ -71,6 +72,9 @@ static int get_frames(UnifexEnv *env, AVPacket *pkt,
         frames[*frame_cnt]->data, payload_size,
         (const uint8_t *const *)frame->data, (const int *)frame->linesize,
         state->codec_ctx->pix_fmt, frame->width, frame->height, 1);
+    
+    best_effort_timestamps[*frame_cnt] = frame->best_effort_timestamp;
+
     (*frame_cnt)++;
 
     ret = avcodec_receive_frame(state->codec_ctx, frame);
@@ -83,19 +87,25 @@ exit_get_frames:
 }
 
 UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, State *state) {
+  return decode_with_dts(env, payload, 0, state);
+}
+
+UNIFEX_TERM decode_with_dts(UnifexEnv *env, UnifexPayload *payload, int dts, State *state) {
+  printf("Decoder: Im here!!!");
   UNIFEX_TERM res_term;
   AVPacket *pkt = NULL;
   int max_frames = 16, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
-
+  int *best_effort_timestamps = NULL;
   pkt = av_packet_alloc();
   av_init_packet(pkt);
   pkt->data = payload->data;
   pkt->size = payload->size;
+  pkt->dts = dts;
 
   int ret = 0;
   if (pkt->size > 0) {
-    ret = get_frames(env, pkt, &out_frames, &max_frames, &frame_cnt, state);
+    ret = get_frames(env, pkt, &out_frames, best_effort_timestamps, &max_frames, &frame_cnt, state);
   }
 
   switch (ret) {
@@ -106,7 +116,7 @@ UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, State *state) {
     res_term = decode_result_error(env, "decode");
     break;
   default:
-    res_term = decode_result_ok(env, out_frames, frame_cnt);
+    res_term = decode_with_dts_result_ok(env, best_effort_timestamps, frame_cnt, out_frames, frame_cnt);
   }
 
   for (int i = 0; i < frame_cnt; i++) {
@@ -115,6 +125,9 @@ UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, State *state) {
   if (out_frames != NULL) {
     unifex_free(out_frames);
   }
+  
+  unifex_free(best_effort_timestamps);
+
   av_packet_free(&pkt);
   return res_term;
 }
@@ -123,8 +136,9 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   UNIFEX_TERM res_term;
   int max_frames = 8, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
+  int *best_effort_timestamps = NULL;
 
-  int ret = get_frames(env, NULL, &out_frames, &max_frames, &frame_cnt, state);
+  int ret = get_frames(env, NULL, &out_frames, best_effort_timestamps, &max_frames, &frame_cnt, state);
   switch (ret) {
   case DECODER_SEND_PKT_ERROR:
     res_term = flush_result_error(env, "send_pkt");
@@ -133,7 +147,7 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
     res_term = flush_result_error(env, "decode");
     break;
   default:
-    res_term = flush_result_ok(env, out_frames, frame_cnt);
+    res_term = flush_result_ok(env, best_effort_timestamps, frame_cnt, out_frames, frame_cnt);
   }
 
   for (int i = 0; i < frame_cnt; i++) {
@@ -142,6 +156,8 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   if (out_frames != NULL) {
     unifex_free(out_frames);
   }
+
+  unifex_free(best_effort_timestamps);
   return res_term;
 }
 
