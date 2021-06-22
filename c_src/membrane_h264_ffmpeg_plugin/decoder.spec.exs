@@ -4,11 +4,17 @@ state_type "State"
 
 spec create() :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
-spec decode_with_dts(payload, dts :: int, state) :: {:ok :: label, best_effort_ts :: [int], frames :: [payload]} | {:error :: label, reason :: atom}
+spec decode_with_dts(payload, dts :: int, state) ::
+       {:ok :: label, best_effort_ts :: [int], frames :: [payload]}
+       | {:error :: label, reason :: atom}
 
-spec decode(payload, state) :: {:ok :: label, best_effort_ts :: [int], frames :: [payload]} | {:error :: label, reason :: atom}
+spec decode(payload, state) ::
+       {:ok :: label, best_effort_ts :: [int], frames :: [payload]}
+       | {:error :: label, reason :: atom}
 
-spec flush(state) :: {:ok :: label, best_effort_ts :: [int], frames :: [payload]} | {:error :: label, reason :: atom}
+spec flush(state) ::
+       {:ok :: label, best_effort_ts :: [int], frames :: [payload]}
+       | {:error :: label, reason :: atom}
 
 spec get_metadata(state) ::
        {:ok :: label, width :: int, height :: int, pix_fmt :: atom}

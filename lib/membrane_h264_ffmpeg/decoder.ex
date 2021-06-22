@@ -29,7 +29,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_init(_opts) do
-    {:ok, %{decoder_ref: nil, count: 0}}
+    {:ok, %{decoder_ref: nil}}
   end
 
   @impl true
@@ -47,22 +47,20 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
+  def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, ctx, state) do
     %{decoder_ref: decoder_ref} = state
 
-    with {:ok, best_effort_ts, frames} <-
-           Native.decode_with_dts(payload, state.count, decoder_ref),
-         bufs = wrap_frames(frames),
+    with {:ok, best_effort_pts_list, frames} <-
+           Native.decode_with_dts(payload, metadata[:dts] || 0, decoder_ref),
+         bufs = wrap_frames(best_effort_pts_list, frames),
          in_caps = ctx.pads.input.caps,
          out_caps = ctx.pads.output.caps,
          {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
       # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
       # but it is noop otherwise, so there is no point in implementing special logic for that case
-      IO.inspect(best_effort_ts, label: "$$$1")
-      IO.inspect(frames, label: "$$$2")
       actions = Enum.concat([caps, bufs, [redemand: :output]])
-      # {{:ok, actions}, %{state | count: state.count + 10 + :rand.uniform(40)}}
-      {{:ok, actions}, %{state | count: state.count + 1}}
+
+      {{:ok, actions}, state}
     else
       {:error, reason} ->
         {{:error, reason}, state}
@@ -77,8 +75,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, frames} <- Native.flush(state.decoder_ref),
-         bufs <- wrap_frames(frames) do
+    with {:ok, best_effort_pts_list, frames} <- Native.flush(state.decoder_ref),
+         bufs <- wrap_frames(best_effort_pts_list, frames) do
       actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}
     else
@@ -91,12 +89,12 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     {:ok, %{state | decoder_ref: nil}}
   end
 
-  defp wrap_frames([]), do: []
+  defp wrap_frames([], []), do: []
 
-  defp wrap_frames(frames) do
-    frames
-    |> Enum.map(fn frame ->
-      %Buffer{payload: frame}
+  defp wrap_frames(best_effort_pts_list, frames) do
+    Enum.zip(best_effort_pts_list, frames)
+    |> Enum.map(fn {best_effort_pts, frame} ->
+      %Buffer{metadata: %{pts: best_effort_pts}, payload: frame}
     end)
     ~> [buffer: {:output, &1}]
   end
