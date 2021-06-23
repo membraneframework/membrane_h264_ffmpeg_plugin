@@ -40,11 +40,11 @@ exit_create:
 }
 
 static int get_frames(UnifexEnv *env, AVPacket *pkt,
-                      UnifexPayload ***ret_frames, int **best_effort_timestamps, int *max_frames,
+                      UnifexPayload ***ret_frames, int64_t **best_effort_timestamps, int *max_frames,
                       int *frame_cnt, State *state) {
   AVFrame *frame = av_frame_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
-  int *timestamps = unifex_alloc((*max_frames) * sizeof(int));
+  int64_t *timestamps = unifex_alloc((*max_frames) * sizeof(*timestamps));
 
   int ret = avcodec_send_packet(state->codec_ctx, pkt);
   if (ret < 0) {
@@ -62,7 +62,7 @@ static int get_frames(UnifexEnv *env, AVPacket *pkt,
     if (*frame_cnt >= (*max_frames)) {
       *max_frames *= 2;
       frames = unifex_realloc(frames, (*max_frames) * sizeof(*frames));
-      timestamps = unifex_realloc(timestamps, (*max_frames) * sizeof(int));
+      timestamps = unifex_realloc(timestamps, (*max_frames) * sizeof(*timestamps));
     }
 
     size_t payload_size = av_image_get_buffer_size(
@@ -95,12 +95,12 @@ UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, State *state) {
   return decode_with_dts(env, payload, 0, state);
 }
 
-UNIFEX_TERM decode_with_dts(UnifexEnv *env, UnifexPayload *payload, int dts, State *state) {
+UNIFEX_TERM decode_with_dts(UnifexEnv *env, UnifexPayload *payload, int64_t dts, State *state) {
   UNIFEX_TERM res_term;
   AVPacket *pkt = NULL;
   int max_frames = 16, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
-  int *best_effort_timestamps = NULL;
+  int64_t *best_effort_timestamps = NULL;
   pkt = av_packet_alloc();
   av_init_packet(pkt);
   pkt->data = payload->data;
@@ -141,7 +141,7 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   UNIFEX_TERM res_term;
   int max_frames = 8, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
-  int *best_effort_timestamps = NULL;
+  int64_t *best_effort_timestamps = NULL;
 
   int ret = get_frames(env, NULL, &out_frames, &best_effort_timestamps, &max_frames, &frame_cnt, state);
   switch (ret) {

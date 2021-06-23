@@ -14,7 +14,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @h264_time_base 90_000
 
-  def_options add_dts: [
+  def_options add_pts?: [
                 spec: boolean(),
                 default: false,
                 description: """
@@ -30,8 +30,9 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
 
   @impl true
-  def handle_init(_opts) do
-    {:ok, %{decoder_ref: nil}}
+  def handle_init(opts) do
+    state = Map.merge(%{decoder_ref: nil}, opts)
+    {:ok, state}
   end
 
   @impl true
@@ -57,7 +58,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
            Native.decode_with_dts(payload, to_h264_time_base(dts), decoder_ref),
          best_effort_pts_list =
            Enum.map(best_effort_pts_list_h264_base, &to_membrane_time_base(&1)),
-         bufs = wrap_frames(best_effort_pts_list, frames),
+         bufs = wrap_frames(best_effort_pts_list, frames, state.add_pts?),
          in_caps = ctx.pads.input.caps,
          out_caps = ctx.pads.output.caps,
          {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
@@ -81,7 +82,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
     with {:ok, best_effort_pts_list, frames} <- Native.flush(state.decoder_ref),
-         bufs <- wrap_frames(best_effort_pts_list, frames) do
+         bufs <- wrap_frames(best_effort_pts_list, frames, state.add_pts?) do
       actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}
     else
@@ -94,12 +95,19 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     {:ok, %{state | decoder_ref: nil}}
   end
 
-  defp wrap_frames([], []), do: []
+  defp wrap_frames([], [], _add_pts?), do: []
 
-  defp wrap_frames(best_effort_pts_list, frames) do
-    Enum.zip(best_effort_pts_list, frames)
-    |> Enum.map(fn {best_effort_pts, frame} ->
-      %Buffer{metadata: %{pts: best_effort_pts}, payload: frame}
+  defp wrap_frames(pts_list, frames, true) do
+    Enum.zip(pts_list, frames)
+    |> Enum.map(fn {pts, frame} ->
+      %Buffer{metadata: %{pts: to_membrane_time_base(pts)}, payload: frame}
+    end)
+    ~> [buffer: {:output, &1}]
+  end
+
+  defp wrap_frames(_pts_list, frames, false) do
+    Enum.map(frames, fn frame ->
+      %Buffer{payload: frame}
     end)
     ~> [buffer: {:output, &1}]
   end

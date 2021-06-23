@@ -18,6 +18,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   use Bunch
   use Bunch.Typespec
 
+  @h264_time_base 90_000
+
   def_input_pad :input,
     demand_unit: :buffers,
     caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
@@ -40,7 +42,14 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                :placebo
              ]
 
-  def_options crf: [
+  def_options add_dts?: [
+                spec: boolean(),
+                default: false,
+                description: """
+                Setting this flag to true causes decoder to add presentation timestamp (dts) taken from buffer timestamp into the AVFrame and in consequence to the produced packet.
+                """
+              ],
+              crf: [
                 description: """
                 Constant rate factor that affects the quality of output stream.
                 Value of 0 is lossless compression while 51 (for 8-bit samples)
@@ -74,7 +83,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @impl true
   def handle_init(opts) do
-    {:ok, opts |> Map.merge(%{encoder_ref: nil})}
+    state = Map.merge(opts, %{encoder_ref: nil})
+    {:ok, state}
   end
 
   @impl true
@@ -88,11 +98,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: payload}, ctx, state) do
+  def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, ctx, state) do
     %{encoder_ref: encoder_ref} = state
+    pts = metadata[:pts] || 0
 
-    with {:ok, frames} <- Native.encode(payload, encoder_ref) do
-      bufs = wrap_frames(frames)
+    with {:ok, dts_list, frames} <-
+           Native.encode_with_pts(payload, to_h264_time_base(pts), encoder_ref) do
+      bufs = wrap_frames(dts_list, frames, state.add_dts?)
       in_caps = ctx.pads.input.caps
 
       caps =
@@ -138,8 +150,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, frames} <- Native.flush(state.encoder_ref),
-         bufs <- wrap_frames(frames) do
+    with {:ok, dts_list, frames} <- Native.flush(state.encoder_ref),
+         bufs <- wrap_frames(dts_list, frames, state.add_dts?) do
       actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}
     else
@@ -152,9 +164,33 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     {:ok, %{state | encoder_ref: nil}}
   end
 
-  defp wrap_frames([]), do: []
+  defp wrap_frames([], [], _add_dts), do: []
 
-  defp wrap_frames(frames) do
-    frames |> Enum.map(fn frame -> %Buffer{payload: frame} end) ~> [buffer: {:output, &1}]
+  defp wrap_frames(dts_list, frames, true) do
+    Enum.zip(dts_list, frames)
+    |> Enum.map(fn {dts, frame} ->
+      %Buffer{metadata: %{dts: to_membrane_time_base(dts)}, payload: frame}
+    end)
+    ~> [buffer: {:output, &1}]
+  end
+
+  defp wrap_frames(_dts_list, frames, false) do
+    Enum.map(frames, fn frame ->
+      %Buffer{payload: frame}
+    end)
+    ~> [buffer: {:output, &1}]
+  end
+
+  # decoder requires timestamps in h264 time base, that is 1/90_000 [s]
+  # timestamps produced by this function are passed to the decoder so
+  # they must be integers
+  defp to_h264_time_base(timestamp) do
+    div(timestamp * @h264_time_base, Membrane.Time.second())
+  end
+
+  # all timestamps in membrane should be represented in the internal units, that is 1 [ns]
+  # this function can return rational number
+  defp to_membrane_time_base(timestamp) do
+    Ratio.div(timestamp * Membrane.Time.second(), @h264_time_base)
   end
 end
