@@ -18,7 +18,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
                 spec: boolean(),
                 default: false,
                 description: """
-                Setting this flag to true causes decoder to add presentation timestamp (pts) taken from buffer timestamp into the AVPacket and in consequence to the produced frame.
+                Setting this flag to `true` causes decoder to add presentation timestamp (pts) taken from buffer timestamp into the AVPacket and in consequence to the produced frame.
                 """
               ]
 
