@@ -15,10 +15,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
   """
   use Bunch
   use Membrane.Filter
-  use Membrane.Log
   alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
   alias Membrane.Caps.Video.H264
+  require Membrane.Logger
 
   def_input_pad :input,
     demand_unit: :buffers,
@@ -135,9 +135,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
     with {:ok, sizes} <- Native.parse(payload, state.parser_ref) do
       {bufs, state} = parse_access_units(payload, sizes, metadata, state)
 
+      generated_caps = mk_caps(state)
+
       caps =
-        if ctx.pads.output.caps == nil and bufs != [] do
-          [caps: {:output, mk_caps(state)}]
+        if ctx.pads.output.caps != generated_caps and bufs != [] do
+          Membrane.Logger.debug("Generating caps")
+          [caps: {:output, generated_caps |> IO.inspect()}]
         else
           []
         end
@@ -160,7 +163,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       {bufs, state} = parse_access_units(<<>>, sizes, state.metadata, state)
 
       if state.partial_frame != <<>> do
-        warn("Discarding incomplete frame because of end of stream")
+        Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
       end
 
       actions = [buffer: {:output, bufs}, end_of_stream: :output]
