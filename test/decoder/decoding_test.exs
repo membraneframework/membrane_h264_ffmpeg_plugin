@@ -2,7 +2,10 @@ defmodule DecoderTest do
   use ExUnit.Case
   import Membrane.Testing.Assertions
   alias Membrane.H264
+  alias Membrane.Testing
   alias Membrane.Testing.Pipeline
+
+  @framerate 30
 
   def prepare_paths(filename) do
     in_path = "../fixtures/input-#{filename}.h264" |> Path.expand(__DIR__)
@@ -24,32 +27,70 @@ defmodule DecoderTest do
     })
   end
 
+  def make_pipeline_with_test_sink(in_path) do
+    Pipeline.start_link(%Pipeline.Options{
+      elements: [
+        file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
+        parser: %H264.FFmpeg.Parser{framerate: {@framerate, 1}},
+        decoder: %H264.FFmpeg.Decoder{add_pts?: true},
+        sink: Testing.Sink
+      ]
+    })
+  end
+
   def assert_files_equal(file_a, file_b) do
     assert {:ok, a} = File.read(file_a)
     assert {:ok, b} = File.read(file_b)
     assert a == b
   end
 
-  def perform_test(filename, timeout) do
+  def perform_decoding_test(filename, timeout) do
     {in_path, ref_path, out_path} = prepare_paths(filename)
 
     assert {:ok, pid} = make_pipeline(in_path, out_path)
     assert Pipeline.play(pid) == :ok
     assert_end_of_stream(pid, :sink, :input, timeout)
     assert_files_equal(out_path, ref_path)
+
+    Testing.Pipeline.stop_and_terminate(pid, blocking?: true)
+  end
+
+  def perform_timestamping_test(filename, frame_count) do
+    {in_path, _ref_path, _out_path} = prepare_paths(filename)
+
+    frame_duration = Ratio.div(Membrane.Time.second(), @framerate)
+
+    assert {:ok, pid} = make_pipeline_with_test_sink(in_path)
+    assert Pipeline.play(pid) == :ok
+
+    0..(frame_count - 1)
+    |> Enum.each(fn i ->
+      assert_sink_buffer(pid, :sink, %Membrane.Buffer{metadata: metadata})
+      assert Ratio.mult(i, frame_duration) == metadata.pts
+    end)
+
+    Testing.Pipeline.stop_and_terminate(pid, blocking?: true)
   end
 
   describe "DecodingPipeline should" do
     test "decode 10 720p frames" do
-      perform_test("10-720p", 500)
+      perform_decoding_test("10-720p", 500)
     end
 
     test "decode 100 240p frames" do
-      perform_test("100-240p", 1000)
+      perform_decoding_test("100-240p", 1000)
     end
 
     test "decode 20 360p frames with 422 subsampling" do
-      perform_test("20-360p-I422", 1000)
+      perform_decoding_test("20-360p-I422", 1000)
+    end
+
+    test "append correct timestamps to 10 720p frames" do
+      perform_timestamping_test("10-720p-no-b-frames", 10)
+    end
+
+    test "append correct timestamps to 100 240p frames" do
+      perform_timestamping_test("100-240p-no-b-frames", 100)
     end
   end
 end

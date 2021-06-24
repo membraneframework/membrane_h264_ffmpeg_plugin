@@ -143,7 +143,12 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   UnifexPayload **out_frames = NULL;
   int64_t *best_effort_timestamps = NULL;
 
-  int ret = get_frames(env, NULL, &out_frames, &best_effort_timestamps, &max_frames, &frame_cnt, state);
+  AVPacket *pkt = av_packet_alloc();
+  av_init_packet(pkt);
+  pkt->data = NULL;
+  pkt->size = 0;
+
+  int ret = get_frames(env, pkt, &out_frames, &best_effort_timestamps, &max_frames, &frame_cnt, state);
   switch (ret) {
   case DECODER_SEND_PKT_ERROR:
     res_term = flush_result_error(env, "send_pkt");

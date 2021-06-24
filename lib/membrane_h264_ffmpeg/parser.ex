@@ -198,7 +198,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   defp do_parse_access_units(input, [au_size | au_sizes], metadata, state, acc) do
     <<au::binary-size(au_size), rest::binary>> = input
-    metadata = Map.put(metadata, :timestamp, state.timestamp)
+
+    # setting both :timestamp and :dts in order to maintain backward compatibility
+    metadata = Map.put(metadata, :timestamp, state.timestamp) |> Map.put(:dts, state.timestamp)
+
     {nalus, au_metadata} = NALu.parse(au)
     au_metadata = Map.merge(metadata, au_metadata)
     state = Map.update!(state, :skip_until_keyframe?, &(&1 and not au_metadata.h264.key_frame?))

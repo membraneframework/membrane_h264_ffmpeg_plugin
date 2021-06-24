@@ -54,11 +54,9 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     %{decoder_ref: decoder_ref} = state
     dts = metadata[:dts] || 0
 
-    with {:ok, best_effort_pts_list_h264_base, frames} <-
+    with {:ok, pts_list_h264_base, frames} <-
            Native.decode_with_dts(payload, to_h264_time_base(dts), decoder_ref),
-         best_effort_pts_list =
-           Enum.map(best_effort_pts_list_h264_base, &to_membrane_time_base(&1)),
-         bufs = wrap_frames(best_effort_pts_list, frames, state.add_pts?),
+         bufs = wrap_frames(pts_list_h264_base, frames, state.add_pts?),
          in_caps = ctx.pads.input.caps,
          out_caps = ctx.pads.output.caps,
          {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
@@ -138,12 +136,12 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   # timestamps produced by this function are passed to the decoder so
   # they must be integers
   defp to_h264_time_base(timestamp) do
-    div(timestamp * @h264_time_base, Membrane.Time.second())
+    Ratio.div(Ratio.mult(timestamp, @h264_time_base), Membrane.Time.second()) |> Ratio.trunc()
   end
 
   # all timestamps in membrane should be represented in the internal units, that is 1 [ns]
   # this function can return rational number
   defp to_membrane_time_base(timestamp) do
-    Ratio.div(timestamp * Membrane.Time.second(), @h264_time_base)
+    Ratio.div(Ratio.mult(timestamp, Membrane.Time.second()), @h264_time_base)
   end
 end
