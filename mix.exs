@@ -65,7 +65,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       {:membrane_caps_video_raw, "~> 0.1.0"},
       {:unifex, "~> 0.4.0"},
       {:bunch, "~> 1.2"},
-      {:membrane_element_rawvideo_parser, "~> 0.3.0", only: [:dev, :test]},
+      {:membrane_element_rawvideo_parser, github: "membraneframework/membrane_element_rawvideo_parser", branch: "add-pts-timestamps", only: [:dev, :test]},
       {:membrane_file_plugin, "~> 0.5.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false}
     ]

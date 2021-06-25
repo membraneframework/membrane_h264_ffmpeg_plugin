@@ -100,6 +100,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   @impl true
   def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, ctx, state) do
     %{encoder_ref: encoder_ref} = state
+    IO.inspect(metadata, label: "metadata encoder")
     pts = metadata[:pts] || 0
 
     with {:ok, dts_list, frames} <-
@@ -185,7 +186,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   # timestamps produced by this function are passed to the decoder so
   # they must be integers
   defp to_h264_time_base(timestamp) do
-    div(timestamp * @h264_time_base, Membrane.Time.second())
+    Ratio.div(Ratio.mult(timestamp, @h264_time_base), Membrane.Time.second()) |> Ratio.trunc()
   end
 
   # all timestamps in membrane should be represented in the internal units, that is 1 [ns]
