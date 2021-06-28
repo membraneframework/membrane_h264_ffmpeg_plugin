@@ -15,6 +15,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.Caps.Video.{H264, Raw}
+  alias Membrane.H264.FFmpeg.Common
+
   use Bunch
   use Bunch.Typespec
 
@@ -103,7 +105,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     pts = metadata[:pts] || 0
 
     with {:ok, dts_list, frames} <-
-           Native.encode_with_pts(payload, to_h264_time_base(pts), encoder_ref) do
+           Native.encode_with_pts(payload, Common.to_h264_time_base(pts), encoder_ref) do
       bufs = wrap_frames(dts_list, frames, state.add_dts?)
       in_caps = ctx.pads.input.caps
 
@@ -169,7 +171,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   defp wrap_frames(dts_list, frames, true) do
     Enum.zip(dts_list, frames)
     |> Enum.map(fn {dts, frame} ->
-      %Buffer{metadata: %{dts: to_membrane_time_base(dts)}, payload: frame}
+      %Buffer{metadata: %{dts: Common.to_membrane_time_base(dts)}, payload: frame}
     end)
     ~> [buffer: {:output, &1}]
   end
@@ -179,18 +181,5 @@ defmodule Membrane.H264.FFmpeg.Encoder do
       %Buffer{payload: frame}
     end)
     ~> [buffer: {:output, &1}]
-  end
-
-  # decoder requires timestamps in h264 time base, that is 1/90_000 [s]
-  # timestamps produced by this function are passed to the decoder so
-  # they must be integers
-  defp to_h264_time_base(timestamp) do
-    Ratio.div(Ratio.mult(timestamp, @h264_time_base), Membrane.Time.second()) |> Ratio.trunc()
-  end
-
-  # all timestamps in membrane should be represented in the internal units, that is 1 [ns]
-  # this function can return rational number
-  defp to_membrane_time_base(timestamp) do
-    Ratio.div(timestamp * Membrane.Time.second(), @h264_time_base)
   end
 end

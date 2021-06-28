@@ -25,4 +25,4 @@ spec flush(state) ::
        {:ok :: label, dts_list :: [int64], frames :: [payload]}
        | {:error :: label, reason :: atom}
 
-dirty :cpu, encode: 2, flush: 1
+dirty :cpu, encode: 2, flush: 1, encode_with_pts: 3

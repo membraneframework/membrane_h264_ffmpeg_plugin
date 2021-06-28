@@ -128,7 +128,7 @@ exit_get_frames:
 }
 
 UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, State *state) {
-  return encode_with_pts(env, payload, -1, state);
+  return encode_with_pts(env, payload, AV_NOPTS_VALUE, state);
 }
 
 UNIFEX_TERM encode_with_pts(UnifexEnv *env, UnifexPayload *payload, int64_t pts, State *state) {
@@ -145,7 +145,7 @@ UNIFEX_TERM encode_with_pts(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   av_image_fill_arrays(frame->data, frame->linesize, payload->data,
                        frame->format, frame->width, frame->height, 1);
 
-  if (pts < 0) {
+  if (pts == AV_NOPTS_VALUE) {
     frame->pts = state->last_pts + 1;
   } else { 
     frame->pts = pts;
