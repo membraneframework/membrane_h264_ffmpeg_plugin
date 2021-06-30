@@ -6,7 +6,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   (`Membrane.Element.RawVideo.Parser`) may be required in a pipeline before
   the encoder (e.g. when input is read from `Membrane.File.Source`).
 
-  Additionaly, the encoder has to receive proper caps with picture format and dimensions
+  Additionally, the encoder has to receive proper caps with picture format and dimensions
   before any encoding takes place.
 
   Please check `t:t/0` for available options.
@@ -19,8 +19,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   use Bunch
   use Bunch.Typespec
-
-  @h264_time_base 90_000
 
   def_input_pad :input,
     demand_unit: :buffers,
