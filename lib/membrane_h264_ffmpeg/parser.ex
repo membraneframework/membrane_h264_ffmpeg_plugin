@@ -139,8 +139,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
       caps =
         if ctx.pads.output.caps != generated_caps and bufs != [] do
-          Membrane.Logger.debug("Generating caps")
-          [caps: {:output, generated_caps |> IO.inspect()}]
+          [caps: {:output, generated_caps}]
         else
           []
         end
