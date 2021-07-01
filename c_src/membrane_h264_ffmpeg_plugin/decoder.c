@@ -91,11 +91,7 @@ exit_get_frames:
   return ret;
 }
 
-UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, State *state) {
-  return decode_with_dts(env, payload, 0, state);
-}
-
-UNIFEX_TERM decode_with_dts(UnifexEnv *env, UnifexPayload *payload, int64_t dts, State *state) {
+UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, int64_t dts, State *state) {
   UNIFEX_TERM res_term;
   AVPacket *pkt = NULL;
   int max_frames = 16, frame_cnt = 0;
@@ -120,7 +116,7 @@ UNIFEX_TERM decode_with_dts(UnifexEnv *env, UnifexPayload *payload, int64_t dts,
     res_term = decode_result_error(env, "decode");
     break;
   default:
-    res_term = decode_with_dts_result_ok(env, best_effort_timestamps, frame_cnt, out_frames, frame_cnt);
+    res_term = decode_result_ok(env, best_effort_timestamps, frame_cnt, out_frames, frame_cnt);
   }
 
   for (int i = 0; i < frame_cnt; i++) {

@@ -55,7 +55,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     dts = metadata[:dts] || 0
 
     with {:ok, pts_list_h264_base, frames} <-
-           Native.decode_with_dts(payload, Common.to_h264_time_base(dts), decoder_ref),
+           Native.decode(payload, Common.to_h264_time_base(dts), decoder_ref),
          bufs = wrap_frames(pts_list_h264_base, frames, state.add_pts?),
          in_caps = ctx.pads.input.caps,
          out_caps = ctx.pads.output.caps,
