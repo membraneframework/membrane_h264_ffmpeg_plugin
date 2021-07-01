@@ -56,12 +56,12 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
 
   defp deps do
     [
+      {:bunch, "~> 1.3.0"},
       {:membrane_core, "~> 0.7.0"},
       {:membrane_common_c, "~> 0.7.0"},
       {:membrane_caps_video_h264, "~> 0.2.0"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
       {:unifex, "~> 0.4.0"},
-      {:bunch, "~> 1.2"},
       {:membrane_element_rawvideo_parser, "~> 0.4.0", only: [:dev, :test]},
       {:membrane_file_plugin, "~> 0.6.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},

@@ -13,7 +13,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
   Setting custom packetization options affects metadata, see `alignment`
   and `attach_nalus?` options for details.
   """
-  use Bunch
   use Membrane.Filter
   use Membrane.Log
   alias __MODULE__.{NALu, Native}

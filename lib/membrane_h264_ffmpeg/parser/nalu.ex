@@ -1,6 +1,5 @@
 defmodule Membrane.H264.FFmpeg.Parser.NALu do
   @moduledoc false
-  use Bunch
 
   # See https://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/
   @nalu_types %{

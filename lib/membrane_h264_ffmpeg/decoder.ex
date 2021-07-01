@@ -12,8 +12,6 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   alias Membrane.Caps.Video.{H264, Raw}
   alias Membrane.H264.FFmpeg.Common
 
-  use Bunch
-
   @h264_time_base 90_000
 
   def_options add_pts?: [
@@ -102,14 +100,14 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     |> Enum.map(fn {pts, frame} ->
       %Buffer{metadata: %{pts: Common.to_membrane_time_base(pts)}, payload: frame}
     end)
-    ~> [buffer: {:output, &1}]
+    |> then(&[buffer: {:output, &1}])
   end
 
   defp wrap_frames(_pts_list, frames, false) do
     Enum.map(frames, fn frame ->
       %Buffer{payload: frame}
     end)
-    ~> [buffer: {:output, &1}]
+    |> then(&[buffer: {:output, &1}])
   end
 
   defp get_caps_if_needed(input_caps, nil, decoder_ref) do

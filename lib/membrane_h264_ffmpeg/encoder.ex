@@ -17,7 +17,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   alias Membrane.Caps.Video.{H264, Raw}
   alias Membrane.H264.FFmpeg.Common
 
-  use Bunch
   use Bunch.Typespec
 
   def_input_pad :input,
@@ -171,13 +170,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     |> Enum.map(fn {dts, frame} ->
       %Buffer{metadata: %{dts: Common.to_membrane_time_base(dts)}, payload: frame}
     end)
-    ~> [buffer: {:output, &1}]
+    |> then(&[buffer: {:output, &1}])
   end
 
   defp wrap_frames(_dts_list, frames, false) do
     Enum.map(frames, fn frame ->
       %Buffer{payload: frame}
     end)
-    ~> [buffer: {:output, &1}]
+    |> then(&[buffer: {:output, &1}])
   end
 end
