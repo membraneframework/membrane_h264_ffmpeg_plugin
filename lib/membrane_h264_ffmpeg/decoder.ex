@@ -12,8 +12,6 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   alias Membrane.Caps.Video.{H264, Raw}
   alias Membrane.H264.FFmpeg.Common
 
-  @h264_time_base 90_000
-
   def_options add_pts?: [
                 spec: boolean(),
                 default: false,
