@@ -95,7 +95,7 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   }
 
   res_term = parse_result_ok(env, out_frame_sizes, frames_cnt);
-exit_parse_frames:
+  exit_parse_frames:
   unifex_free(out_frame_sizes);
   av_packet_free(&pkt);
   unifex_payload_realloc(payload, old_size);

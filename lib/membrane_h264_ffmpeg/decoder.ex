@@ -35,9 +35,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    with {:ok, decoder_ref} <- Native.create() do
-      {:ok, %{state | decoder_ref: decoder_ref}}
-    else
+    case Native.create() do
+      {:ok, decoder_ref} -> {:ok, %{state | decoder_ref: decoder_ref}}
       {:error, reason} -> {{:error, reason}, state}
     end
   end
@@ -128,5 +127,5 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     end
   end
 
-  defp get_caps_if_needed(_, _, _), do: {:ok, []}
+  defp get_caps_if_needed(_in_caps, _out_caps, _decoder_ref), do: {:ok, []}
 end

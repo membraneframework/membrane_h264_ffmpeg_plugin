@@ -100,9 +100,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    with {:ok, parser_ref} <- Native.create() do
-      {:ok, %{state | parser_ref: parser_ref}}
-    else
+    case Native.create() do
+      {:ok, parser_ref} -> {:ok, %{state | parser_ref: parser_ref}}
       {:error, reason} -> {{:error, reason}, state}
     end
   end
@@ -131,19 +130,21 @@ defmodule Membrane.H264.FFmpeg.Parser do
         state.first_frame_prefix <> payload
       end
 
-    with {:ok, sizes} <- Native.parse(payload, state.parser_ref) do
-      {bufs, state} = parse_access_units(payload, sizes, metadata, state)
+    case Native.parse(payload, state.parser_ref) do
+      {:ok, sizes} ->
+        {bufs, state} = parse_access_units(payload, sizes, metadata, state)
 
-      caps =
-        if ctx.pads.output.caps == nil and bufs != [] do
-          [caps: {:output, mk_caps(state)}]
-        else
-          []
-        end
+        caps =
+          if ctx.pads.output.caps == nil and bufs != [] do
+            [caps: {:output, mk_caps(state)}]
+          else
+            []
+          end
 
-      {{:ok, caps ++ [buffer: {:output, bufs}, redemand: :output]}, state}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+        {{:ok, caps ++ [buffer: {:output, bufs}, redemand: :output]}, state}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 

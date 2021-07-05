@@ -1,9 +1,9 @@
 defmodule DecodingTest do
+  use ExUnit.Case
   import Membrane.Testing.Assertions
   alias Membrane.Element
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
-  use ExUnit.Case
 
   def prepare_paths(filename) do
     in_path = "../fixtures/reference-#{filename}.raw" |> Path.expand(__DIR__)

@@ -1,8 +1,8 @@
 defmodule TranscodingTest do
+  use ExUnit.Case
   import Membrane.Testing.Assertions
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
-  use ExUnit.Case
 
   def prepare_paths(filename) do
     in_path = "../fixtures/input-#{filename}.h264" |> Path.expand(__DIR__)
