@@ -35,8 +35,9 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    case Native.create() do
-      {:ok, decoder_ref} -> {:ok, %{state | decoder_ref: decoder_ref}}
+    with {:ok, decoder_ref} <- Native.create() do
+      {:ok, %{state | decoder_ref: decoder_ref}}
+    else
       {:error, reason} -> {{:error, reason}, state}
     end
   end

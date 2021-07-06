@@ -100,27 +100,27 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     %{encoder_ref: encoder_ref} = state
     pts = metadata[:pts] || 0
 
-    case Native.encode_with_pts(payload, Common.to_h264_time_base(pts), encoder_ref) do
-      {:ok, dts_list, frames} ->
-        bufs = wrap_frames(dts_list, frames, state.add_dts?)
-        in_caps = ctx.pads.input.caps
+    with {:ok, dts_list, frames} <-
+           Native.encode_with_pts(payload, Common.to_h264_time_base(pts), encoder_ref) do
+      bufs = wrap_frames(dts_list, frames, state.add_dts?)
+      in_caps = ctx.pads.input.caps
 
-        caps =
-          {:output,
-           %H264{
-             alignment: :au,
-             framerate: in_caps.framerate,
-             height: in_caps.height,
-             width: in_caps.width,
-             profile: state.profile,
-             stream_format: :byte_stream
-           }}
+      caps =
+        {:output,
+         %H264{
+           alignment: :au,
+           framerate: in_caps.framerate,
+           height: in_caps.height,
+           width: in_caps.width,
+           profile: state.profile,
+           stream_format: :byte_stream
+         }}
 
-        # redemand is needed until the internal buffer of encoder is filled (no buffers will be
-        # generated before that) but it is a noop if the demand has been fulfilled
-        actions = [{:caps, caps} | bufs] ++ [redemand: :output]
-        {{:ok, actions}, state}
-
+      # redemand is needed until the internal buffer of encoder is filled (no buffers will be
+      # generated before that) but it is a noop if the demand has been fulfilled
+      actions = [{:caps, caps} | bufs] ++ [redemand: :output]
+      {{:ok, actions}, state}
+    else
       {:error, reason} ->
         {{:error, reason}, state}
     end
@@ -130,17 +130,19 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def handle_caps(:input, %Raw{} = caps, _ctx, state) do
     {framerate_num, framerate_denom} = caps.framerate
 
-    case Native.create(
-           caps.width,
-           caps.height,
-           caps.format,
-           state.preset,
-           state.profile,
-           framerate_num,
-           framerate_denom,
-           state.crf
-         ) do
-      {:ok, encoder_ref} -> {{:ok, redemand: :output}, %{state | encoder_ref: encoder_ref}}
+    with {:ok, encoder_ref} <-
+           Native.create(
+             caps.width,
+             caps.height,
+             caps.format,
+             state.preset,
+             state.profile,
+             framerate_num,
+             framerate_denom,
+             state.crf
+           ) do
+      {{:ok, redemand: :output}, %{state | encoder_ref: encoder_ref}}
+    else
       {:error, reason} -> {{:error, reason}, state}
     end
   end
