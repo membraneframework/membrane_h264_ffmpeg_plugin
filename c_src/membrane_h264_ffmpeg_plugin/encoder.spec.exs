@@ -15,14 +15,11 @@ spec create(
 
 spec get_frame_size(state) :: {:ok :: label, frame_size :: int} | {:error :: label}
 
-spec encode(payload, state) ::
-       {:ok :: label, dts_list :: [int64], [payload]} | {:error :: label, reason :: atom}
-
-spec encode_with_pts(payload, pts :: int64, state) ::
+spec encode(payload, pts :: int64, state) ::
        {:ok :: label, dts_list :: [int64], [payload]} | {:error :: label, reason :: atom}
 
 spec flush(state) ::
        {:ok :: label, dts_list :: [int64], frames :: [payload]}
        | {:error :: label, reason :: atom}
 
-dirty :cpu, encode: 2, flush: 1, encode_with_pts: 3
+dirty :cpu, flush: 1, encode: 3

@@ -101,7 +101,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     pts = metadata[:pts] || 0
 
     with {:ok, dts_list, frames} <-
-           Native.encode_with_pts(payload, Common.to_h264_time_base(pts), encoder_ref) do
+           Native.encode(payload, Common.to_h264_time_base(pts), encoder_ref) do
       bufs = wrap_frames(dts_list, frames, state.add_dts?)
       in_caps = ctx.pads.input.caps
 

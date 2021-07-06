@@ -127,11 +127,7 @@ exit_get_frames:
   return ret;
 }
 
-UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, State *state) {
-  return encode_with_pts(env, payload, AV_NOPTS_VALUE, state);
-}
-
-UNIFEX_TERM encode_with_pts(UnifexEnv *env, UnifexPayload *payload, int64_t pts, State *state) {
+UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, State *state) {
   UNIFEX_TERM res_term;
   int res = 0;
   int max_frames = 16, frame_cnt = 0;
