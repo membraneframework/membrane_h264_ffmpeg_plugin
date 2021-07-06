@@ -32,7 +32,7 @@ defmodule DecoderTest do
       elements: [
         file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
         parser: %H264.FFmpeg.Parser{framerate: {@framerate, 1}},
-        decoder: %H264.FFmpeg.Decoder{add_pts?: true},
+        decoder: H264.FFmpeg.Decoder,
         sink: Testing.Sink
       ]
     })

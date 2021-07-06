@@ -40,14 +40,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                :placebo
              ]
 
-  def_options add_dts?: [
-                spec: boolean(),
-                default: false,
-                description: """
-                Setting this flag to true causes decoder to add presentation timestamp (dts) taken from buffer timestamp into the AVFrame and in consequence to the produced packet.
-                """
-              ],
-              crf: [
+  def_options crf: [
                 description: """
                 Constant rate factor that affects the quality of output stream.
                 Value of 0 is lossless compression while 51 (for 8-bit samples)
@@ -102,7 +95,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
     with {:ok, dts_list, frames} <-
            Native.encode(payload, Common.to_h264_time_base(pts), encoder_ref) do
-      bufs = wrap_frames(dts_list, frames, state.add_dts?)
+      bufs = wrap_frames(dts_list, frames)
       in_caps = ctx.pads.input.caps
 
       caps =
@@ -150,7 +143,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
     with {:ok, dts_list, frames} <- Native.flush(state.encoder_ref),
-         bufs <- wrap_frames(dts_list, frames, state.add_dts?) do
+         bufs <- wrap_frames(dts_list, frames) do
       actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}
     else
@@ -163,19 +156,12 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     {:ok, %{state | encoder_ref: nil}}
   end
 
-  defp wrap_frames([], [], _add_dts), do: []
+  defp wrap_frames([], []), do: []
 
-  defp wrap_frames(dts_list, frames, true) do
+  defp wrap_frames(dts_list, frames) do
     Enum.zip(dts_list, frames)
     |> Enum.map(fn {dts, frame} ->
       %Buffer{metadata: %{dts: Common.to_membrane_time_base(dts)}, payload: frame}
-    end)
-    |> then(&[buffer: {:output, &1}])
-  end
-
-  defp wrap_frames(_dts_list, frames, false) do
-    Enum.map(frames, fn frame ->
-      %Buffer{payload: frame}
     end)
     |> then(&[buffer: {:output, &1}])
   end
