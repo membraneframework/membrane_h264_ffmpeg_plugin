@@ -1,8 +1,8 @@
 defmodule TranscodingTest do
+  use ExUnit.Case
   import Membrane.Testing.Assertions
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
-  use ExUnit.Case
 
   def prepare_paths(filename) do
     in_path = "../fixtures/input-#{filename}.h264" |> Path.expand(__DIR__)
@@ -30,6 +30,8 @@ defmodule TranscodingTest do
     assert {:ok, pid} = make_pipeline(in_path, out_path)
     assert Pipeline.play(pid) == :ok
     assert_end_of_stream(pid, :sink, :input, timeout)
+
+    Pipeline.stop_and_terminate(pid, blocking?: true)
   end
 
   describe "TranscodingPipeline should" do

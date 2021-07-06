@@ -1,9 +1,9 @@
 defmodule DecodingTest do
+  use ExUnit.Case
   import Membrane.Testing.Assertions
   alias Membrane.Element
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
-  use ExUnit.Case
 
   def prepare_paths(filename) do
     in_path = "../fixtures/reference-#{filename}.raw" |> Path.expand(__DIR__)
@@ -30,6 +30,8 @@ defmodule DecodingTest do
     assert {:ok, pid} = make_pipeline(in_path, out_path, width, height, format)
     assert Pipeline.play(pid) == :ok
     assert_end_of_stream(pid, :sink, :input, 3000)
+
+    Pipeline.stop_and_terminate(pid, blocking?: true)
   end
 
   describe "EncodingPipeline should" do

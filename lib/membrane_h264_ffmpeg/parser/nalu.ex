@@ -1,6 +1,5 @@
 defmodule Membrane.H264.FFmpeg.Parser.NALu do
   @moduledoc false
-  use Bunch
 
   # See https://yumichan.net/video-processing/video-compression/introduction-to-h264-nal-unit/
   @nalu_types %{
@@ -32,6 +31,7 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
               end)
               |> Map.new()
 
+  @spec parse(binary) :: {list, %{h264: any}}
   def parse(access_unit) do
     {nalus, au_info} =
       access_unit
