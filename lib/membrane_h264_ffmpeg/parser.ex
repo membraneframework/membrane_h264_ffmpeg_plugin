@@ -131,19 +131,26 @@ defmodule Membrane.H264.FFmpeg.Parser do
         state.first_frame_prefix <> payload
       end
 
-    with {:ok, sizes} <- Native.parse(payload, state.parser_ref) do
+    with {:ok, sizes, change_idx} <- Native.parse(payload, state.parser_ref) do
       {bufs, state} = parse_access_units(payload, sizes, metadata, state)
+      Membrane.Logger.debug("length: #{length(bufs)} change at index: #{change_idx}")
 
       generated_caps = mk_caps(state)
+      # TODO should we handle more than one (last) caps' change?
+      if ctx.pads.output.caps != generated_caps and bufs != [] do
+        Membrane.Logger.debug("generated caps")
+        {old_bufs, new_bufs} = Enum.split(bufs, change_idx)
 
-      caps =
-        if ctx.pads.output.caps != generated_caps and bufs != [] do
-          [caps: {:output, generated_caps}]
-        else
-          []
-        end
-
-      {{:ok, caps ++ [buffer: {:output, bufs}, redemand: :output]}, state}
+        {{:ok,
+          [
+            buffer: {:output, old_bufs},
+            caps: {:output, generated_caps},
+            buffer: {:output, new_bufs},
+            redemand: :output
+          ]}, state}
+      else
+        {{:ok, [buffer: {:output, bufs}, redemand: :output]}, state}
+      end
     else
       {:error, reason} -> {{:error, reason}, state}
     end

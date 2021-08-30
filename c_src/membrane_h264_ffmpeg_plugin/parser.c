@@ -1,42 +1,50 @@
 #include "parser.h"
 
-void handle_destroy_state(UnifexEnv *env, State *state) {
+void handle_destroy_state(UnifexEnv *env, State *state)
+{
   UNIFEX_UNUSED(env);
 
-  if (state->parser_ctx != NULL) {
+  if (state->parser_ctx != NULL)
+  {
     av_parser_close(state->parser_ctx);
   }
 
-  if (state->codec_ctx != NULL) {
+  if (state->codec_ctx != NULL)
+  {
     avcodec_free_context(&state->codec_ctx);
   }
 }
 
-UNIFEX_TERM create(UnifexEnv *env) {
+UNIFEX_TERM create(UnifexEnv *env)
+{
   UNIFEX_TERM res;
   State *state = unifex_alloc_state(env);
   state->codec_ctx = NULL;
   state->parser_ctx = NULL;
 
   AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-  if (!codec) {
+  if (!codec)
+  {
     res = create_result_error(env, "nocodec");
     goto exit_create;
   }
 
   state->parser_ctx = av_parser_init(codec->id);
-  if (!state->parser_ctx) {
+  if (!state->parser_ctx)
+  {
     res = create_result_error(env, "noparser");
     goto exit_create;
   }
 
   state->codec_ctx = avcodec_alloc_context3(codec);
-  if (!state->codec_ctx) {
+  if (!state->codec_ctx)
+  {
     res = create_result_error(env, "codec_alloc");
     goto exit_create;
   }
 
-  if (avcodec_open2(state->codec_ctx, codec, NULL) < 0) {
+  if (avcodec_open2(state->codec_ctx, codec, NULL) < 0)
+  {
     res = create_result_error(env, "codec_open");
     goto exit_create;
   }
@@ -46,8 +54,14 @@ exit_create:
   unifex_release_state(env, state);
   return res;
 }
+static int meta_changed(AVCodecParserContext old_ctx, AVCodecParserContext new_ctx)
+{
+  // consider only width and height in metadata comparison
+  return (old_ctx.width != new_ctx.width) || (old_ctx.height != new_ctx.height);
+}
 
-UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
+UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state)
+{
   UNIFEX_TERM res_term;
   int ret;
   size_t max_frames = 32, frames_cnt = 0;
@@ -57,7 +71,8 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   size_t old_size = payload->size;
   ret =
       unifex_payload_realloc(payload, old_size + AV_INPUT_BUFFER_PADDING_SIZE);
-  if (!ret) {
+  if (!ret)
+  {
     res_term = parse_result_error(env, "realloc");
     goto exit_parse_frames;
   }
@@ -69,12 +84,23 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
 
   uint8_t *data_ptr = payload->data;
   size_t data_left = old_size;
-
-  while (data_left > 0) {
+  // TODO should we handle more than one context change?
+  AVCodecParserContext last_context = *state->parser_ctx;
+  int last_change_idx = -1;
+  int idx = 0;
+  while (data_left > 0)
+  {
     ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &pkt->data,
                            &pkt->size, data_ptr, data_left, AV_NOPTS_VALUE,
                            AV_NOPTS_VALUE, 0);
-    if (ret < 0) {
+    if (meta_changed(last_context, *state->parser_ctx))
+    {
+      last_change_idx = idx;
+      last_context = *state->parser_ctx;
+    }
+    idx++;
+    if (ret < 0)
+    {
       res_term = parse_result_error(env, "parsing");
       goto exit_parse_frames;
     }
@@ -82,8 +108,10 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
     data_ptr += ret;
     data_left -= ret;
 
-    if (pkt->size > 0) {
-      if (frames_cnt >= max_frames) {
+    if (pkt->size > 0)
+    {
+      if (frames_cnt >= max_frames)
+      {
         max_frames *= 2;
         out_frame_sizes =
             unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
@@ -94,18 +122,20 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
     }
   }
 
-  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt);
-  exit_parse_frames:
+  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt, last_change_idx);
+exit_parse_frames:
   unifex_free(out_frame_sizes);
   av_packet_free(&pkt);
   unifex_payload_realloc(payload, old_size);
   return res_term;
 }
 
-UNIFEX_TERM get_parsed_meta(UnifexEnv *env, State *state) {
+UNIFEX_TERM get_parsed_meta(UnifexEnv *env, State *state)
+{
   char *profile_atom;
 
-  switch (state->codec_ctx->profile) {
+  switch (state->codec_ctx->profile)
+  {
   case FF_PROFILE_H264_CONSTRAINED_BASELINE:
     profile_atom = "constrained_baseline";
     break;
@@ -144,7 +174,8 @@ UNIFEX_TERM get_parsed_meta(UnifexEnv *env, State *state) {
                                    state->parser_ctx->height, profile_atom);
 }
 
-UNIFEX_TERM flush(UnifexEnv *env, State *state) {
+UNIFEX_TERM flush(UnifexEnv *env, State *state)
+{
   int ret;
   uint8_t *data_ptr;
   unsigned out_frame_size;
@@ -152,11 +183,13 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
                          (int *)&out_frame_size, NULL, 0, AV_NOPTS_VALUE,
                          AV_NOPTS_VALUE, 0);
 
-  if (ret < 0) {
+  if (ret < 0)
+  {
     return parse_result_error(env, "parsing");
   }
 
-  if (out_frame_size == 0) {
+  if (out_frame_size == 0)
+  {
     return flush_result_ok(env, NULL, 0);
   }
 

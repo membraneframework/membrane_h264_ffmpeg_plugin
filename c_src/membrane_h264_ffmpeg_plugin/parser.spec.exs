@@ -5,7 +5,7 @@ state_type "State"
 spec create() :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
 spec parse(payload, state) ::
-       {:ok :: label, frame_sizes :: [unsigned]}
+       {:ok :: label, frame_sizes :: [unsigned], change_idx :: int}
        | {:error :: label, reason :: atom}
 
 spec get_parsed_meta(state) :: {:ok :: label, width :: int, height :: int, profile :: atom}
