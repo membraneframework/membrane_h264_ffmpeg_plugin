@@ -131,27 +131,36 @@ defmodule Membrane.H264.FFmpeg.Parser do
         state.first_frame_prefix <> payload
       end
 
-    with {:ok, sizes, change_idx} <- Native.parse(payload, state.parser_ref) do
+    with {:ok, sizes, resolution_changes} <- Native.parse(payload, state.parser_ref) do
       {bufs, state} = parse_access_units(payload, sizes, metadata, state)
 
-      generated_caps = mk_caps(state)
-      # TODO should we handle more than one (last) caps' change?
-      if ctx.pads.output.caps != generated_caps and bufs != [] do
-        {old_bufs, new_bufs} = Enum.split(bufs, change_idx)
-
-        {{:ok,
-          [
-            buffer: {:output, old_bufs},
-            caps: {:output, generated_caps},
-            buffer: {:output, new_bufs},
-            redemand: :output
-          ]}, state}
-      else
-        {{:ok, [buffer: {:output, bufs}, redemand: :output]}, state}
-      end
+      actions = parse_resolution_changes(state, bufs, resolution_changes)
+      {{:ok, actions ++ [redemand: :output]}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
+  end
+
+  # analize resolution changes and generate appropriate caps before corresponding buffers
+  defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
+
+  defp parse_resolution_changes(_state, bufs, [], acc, _index_offset) do
+    acc ++ [buffer: {:output, bufs}]
+  end
+
+  defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc, index_offset) do
+    updated_index = meta.index - index_offset
+    {old_bufs, next_bufs} = Enum.split(bufs, updated_index)
+    # caps for next buffers (not old_bufs!)
+    new_caps = mk_caps(state, meta.width, meta.height)
+
+    parse_resolution_changes(
+      state,
+      next_bufs,
+      resolution_changes,
+      acc ++ [buffer: {:output, old_bufs}, caps: {:output, new_caps}],
+      meta.index
+    )
   end
 
   @impl true
@@ -254,8 +263,22 @@ defmodule Membrane.H264.FFmpeg.Parser do
     %{state | timestamp: timestamp}
   end
 
-  defp mk_caps(state) do
-    {:ok, width, height, profile} = Native.get_parsed_meta(state.parser_ref)
+  # defp mk_caps(state) do
+  #   {:ok, width, height, profile} = Native.get_parsed_meta(state.parser_ref)
+
+  #   %H264{
+  #     width: width,
+  #     height: height,
+  #     framerate: state.framerate,
+  #     alignment: state.alignment,
+  #     nalu_in_metadata?: state.attach_nalus?,
+  #     stream_format: :byte_stream,
+  #     profile: profile
+  #   }
+  # end
+
+  defp mk_caps(state, width, height) do
+    {:ok, profile} = Native.get_profile(state.parser_ref)
 
     %H264{
       width: width,

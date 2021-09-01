@@ -5,7 +5,7 @@ defmodule DecodingTest do
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
 
-  def prepare_paths(filename) do
+  defp prepare_paths(filename) do
     in_path = "../fixtures/reference-#{filename}.raw" |> Path.expand(__DIR__)
     out_path = "/tmp/output-encode-#{filename}.h264"
     File.rm(out_path)
@@ -13,7 +13,7 @@ defmodule DecodingTest do
     {in_path, out_path}
   end
 
-  def make_pipeline(in_path, out_path, width, height, format \\ :I420) do
+  defp make_pipeline(in_path, out_path, width, height, format \\ :I420) do
     Pipeline.start_link(%Pipeline.Options{
       elements: [
         file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
@@ -24,7 +24,7 @@ defmodule DecodingTest do
     })
   end
 
-  def perform_test(filename, width, height, format \\ :I420) do
+  defp perform_test(filename, width, height, format \\ :I420) do
     {in_path, out_path} = prepare_paths(filename)
 
     assert {:ok, pid} = make_pipeline(in_path, out_path, width, height, format)

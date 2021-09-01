@@ -46,17 +46,24 @@ exit_create:
   unifex_release_state(env, state);
   return res;
 }
-static int meta_changed(AVCodecParserContext old_ctx,
-                        AVCodecParserContext new_ctx) {
+struct ResolutionChange {
+  int width;
+  int height;
+  int index;
+};
+static int resolution_changed(struct ResolutionChange last_res, State *state) {
   // consider only width and height in metadata comparison
-  return (old_ctx.width != new_ctx.width) || (old_ctx.height != new_ctx.height);
+  return (state->parser_ctx->width != last_res.width) ||
+         (state->parser_ctx->height != last_res.height);
 }
 
 UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   UNIFEX_TERM res_term;
   int ret;
-  size_t max_frames = 32, frames_cnt = 0;
+  size_t max_frames = 32, frames_cnt = 0, max_changes = 5, changes_cnt = 0;
   unsigned *out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
+  struct ResolutionChange *changes =
+      unifex_alloc(max_changes * sizeof(struct ResolutionChange));
 
   AVPacket *pkt = NULL;
   size_t old_size = payload->size;
@@ -74,19 +81,13 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
 
   uint8_t *data_ptr = payload->data;
   size_t data_left = old_size;
-  // TODO should we handle more than one context change?
-  AVCodecParserContext last_context = *state->parser_ctx;
-  int last_change_idx = -1;
-  int idx = 0;
+  struct ResolutionChange *last_res = &(struct ResolutionChange){
+      state->parser_ctx->width, state->parser_ctx->height, 0};
   while (data_left > 0) {
     ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &pkt->data,
                            &pkt->size, data_ptr, data_left, AV_NOPTS_VALUE,
                            AV_NOPTS_VALUE, 0);
-    if (meta_changed(last_context, *state->parser_ctx)) {
-      last_change_idx = idx;
-      last_context = *state->parser_ctx;
-    }
-    idx++;
+
     if (ret < 0) {
       res_term = parse_result_error(env, "parsing");
       goto exit_parse_frames;
@@ -96,6 +97,21 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
     data_left -= ret;
 
     if (pkt->size > 0) {
+      if (resolution_changed(*last_res, state)) {
+        if (changes_cnt >= max_changes) {
+          max_changes *= 2;
+          changes = unifex_realloc(
+              changes, max_changes * sizeof(struct ResolutionChange));
+        }
+
+        struct ResolutionChange new_res = {
+            state->parser_ctx->width, state->parser_ctx->height, frames_cnt};
+        changes[changes_cnt] = new_res;
+        changes_cnt++;
+
+        last_res = &new_res;
+      }
+
       if (frames_cnt >= max_frames) {
         max_frames *= 2;
         out_frame_sizes =
@@ -107,7 +123,8 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
     }
   }
 
-  res_term = parse_result_ok(env, out_frame_sizes, frames_cnt, last_change_idx);
+  res_term =
+      parse_result_ok(env, out_frame_sizes, frames_cnt, changes, changes_cnt);
 exit_parse_frames:
   unifex_free(out_frame_sizes);
   av_packet_free(&pkt);
@@ -115,7 +132,7 @@ exit_parse_frames:
   return res_term;
 }
 
-UNIFEX_TERM get_parsed_meta(UnifexEnv *env, State *state) {
+UNIFEX_TERM get_profile(UnifexEnv *env, State *state) {
   char *profile_atom;
 
   switch (state->codec_ctx->profile) {
@@ -153,8 +170,7 @@ UNIFEX_TERM get_parsed_meta(UnifexEnv *env, State *state) {
     profile_atom = "unknown";
   }
 
-  return get_parsed_meta_result_ok(env, state->parser_ctx->width,
-                                   state->parser_ctx->height, profile_atom);
+  return get_profile_result_ok(env, profile_atom);
 }
 
 UNIFEX_TERM flush(UnifexEnv *env, State *state) {
