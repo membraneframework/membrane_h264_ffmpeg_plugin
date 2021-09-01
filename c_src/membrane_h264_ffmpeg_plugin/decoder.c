@@ -68,8 +68,8 @@ static int get_frames(UnifexEnv *env, AVPacket *pkt,
     size_t payload_size = av_image_get_buffer_size(
         state->codec_ctx->pix_fmt, frame->width, frame->height, 1);
 
-    frames[*frame_cnt] =
-        unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, payload_size);
+    frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
+    unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, payload_size, frames[*frame_cnt]);
     timestamps[*frame_cnt] = frame->best_effort_timestamp;
 
     av_image_copy_to_buffer(
@@ -119,10 +119,13 @@ UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, int64_t dts, State *s
     res_term = decode_result_ok(env, best_effort_timestamps, frame_cnt, out_frames, frame_cnt);
   }
 
-  for (int i = 0; i < frame_cnt; i++) {
-    unifex_payload_release(out_frames[i]);
-  }
   if (out_frames != NULL) {
+    for (int i = 0; i < frame_cnt; i++) {
+      if (out_frames[i] != NULL) {
+        unifex_payload_release(out_frames[i]);
+        unifex_free(out_frames[i]);
+      }
+    }
     unifex_free(out_frames);
   }
   if (best_effort_timestamps != NULL) {
@@ -151,10 +154,13 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
     res_term = flush_result_ok(env, best_effort_timestamps, frame_cnt, out_frames, frame_cnt);
   }
 
-  for (int i = 0; i < frame_cnt; i++) {
-    unifex_payload_release(out_frames[i]);
-  }
   if (out_frames != NULL) {
+    for (int i = 0; i < frame_cnt; i++) {
+      if (out_frames[i] != NULL) {
+        unifex_payload_release(out_frames[i]);
+        unifex_free(out_frames[i]);
+      }
+    }
     unifex_free(out_frames);
   }
   if (best_effort_timestamps != NULL) {

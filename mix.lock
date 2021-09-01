@@ -28,5 +28,5 @@
   "secure_random": {:hex, :secure_random, "0.5.1", "c5532b37c89d175c328f5196a0c2a5680b15ebce3e654da37129a9fe40ebf51b", [:mix], [], "hexpm", "1b9754f15e3940a143baafd19da12293f100044df69ea12db5d72878312ae6ab"},
   "shmex": {:hex, :shmex, "0.4.0", "8a074a984bbd45808d80eddfa0f037d7dfb4d4046e6566cd40adf41e13decf74", [:mix], [{:bunch_native, "~> 0.4.0", [hex: :bunch_native, repo: "hexpm", optional: false]}, {:bundlex, "~> 0.5.0", [hex: :bundlex, repo: "hexpm", optional: false]}], "hexpm", "1018c4eca1db5352ed4dec4813e1ee212b98fc851e1edd302906892538bbfaa8"},
   "telemetry": {:hex, :telemetry, "0.4.3", "a06428a514bdbc63293cd9a6263aad00ddeb66f608163bdec7c8995784080818", [:rebar3], [], "hexpm", "eb72b8365ffda5bed68a620d1da88525e326cb82a75ee61354fc24b844768041"},
-  "unifex": {:hex, :unifex, "0.6.0", "74df301350722227e0e6243a4c729be0c58759bc3661378548b473883be78c38", [:mix], [{:bunch, "~> 1.0", [hex: :bunch, repo: "hexpm", optional: false]}, {:bundlex, "~> 0.5.0", [hex: :bundlex, repo: "hexpm", optional: false]}, {:shmex, "~> 0.4.0", [hex: :shmex, repo: "hexpm", optional: false]}], "hexpm", "b7a2b7da941aa0ae32c4659a317e0dcc02216557bc3c522b510eb4e466ddced0"},
+  "unifex": {:git, "https://github.com/membraneframework/unifex.git", "2483cf36aa72f26a8ade2898ea10eff2eacd4abd", [branch: "cnode-thread-api"]},
 }

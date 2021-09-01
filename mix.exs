@@ -63,7 +63,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       {:membrane_common_c, "~> 0.8.0"},
       {:membrane_core, "~> 0.7.0"},
       {:ratio, "~> 2.4.0"},
-      {:unifex, "~> 0.6.0"},
+      {:unifex, github: "membraneframework/unifex", branch: "cnode-thread-api", override: true},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1.0", only: [:dev, :test], runtime: false},
       {:membrane_element_rawvideo_parser, "~> 0.4.0", only: [:dev, :test]},
