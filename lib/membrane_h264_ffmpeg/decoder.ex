@@ -23,7 +23,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_init(_opts) do
-    state = %{decoder_ref: nil}
+    state = %{decoder_ref: nil, caps_changed: false}
     {:ok, state}
   end
 
@@ -46,24 +46,19 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     %{decoder_ref: decoder_ref} = state
     dts = metadata[:dts] || 0
 
-    case Native.decode(payload, Common.to_h264_time_base(dts), decoder_ref) do
-      {:ok, pts_list_h264_base, frames} ->
-        with bufs = wrap_frames(pts_list_h264_base, frames),
-             in_caps = ctx.pads.input.caps,
-             out_caps = ctx.pads.output.caps,
-             {:ok, caps} <- update_caps_if_needed(in_caps, out_caps, decoder_ref) do
-          # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
-          # but it is noop otherwise, so there is no point in implementing special logic for that case
-          actions = Enum.concat([caps, bufs, [redemand: :output]])
-          {{:ok, actions}, state}
-        else
-          {:error, reason} ->
-            {{:error, reason}, state}
-        end
+    with {:ok, pts_list_h264_base, frames} <-
+           Native.decode(payload, Common.to_h264_time_base(dts), decoder_ref),
+         bufs = wrap_frames(pts_list_h264_base, frames),
+         in_caps = ctx.pads.input.caps do
+      {caps, state} = update_caps(state, in_caps)
 
+      # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
+      # but it is noop otherwise, so there is no point in implementing special logic for that case
+      actions = Enum.concat([caps, bufs, [redemand: :output]])
+      {{:ok, actions}, state}
+    else
       {:error, reason} ->
-        Membrane.Logger.warn("packet dropped, decoding error: #{reason}")
-        {:ok, state}
+        {{:error, reason}, state}
     end
   end
 
@@ -71,7 +66,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   def handle_caps(:input, _caps, _ctx, state) do
     # only redeclaring decoder - new caps will be generated in handle_process, after decoding key_frame
     with {:ok, decoder_ref} <- Native.create() do
-      {{:ok, redemand: :output}, %{state | decoder_ref: decoder_ref}}
+      {{:ok, redemand: :output}, %{state | decoder_ref: decoder_ref, caps_changed: true}}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -103,20 +98,12 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     |> then(&[buffer: {:output, &1}])
   end
 
-  defp update_caps_if_needed(input_caps, nil, decoder_ref) do
-    new_caps = generate_caps(input_caps, decoder_ref)
-
-    {:ok, caps: {:output, new_caps}}
+  defp update_caps(%{caps_changed: true, decoder_ref: decoder_ref} = state, in_caps) do
+    {[caps: {:output, generate_caps(in_caps, decoder_ref)}], %{state | caps_changed: false}}
   end
 
-  defp update_caps_if_needed(input_caps, output_caps, decoder_ref) do
-    new_caps = generate_caps(input_caps, decoder_ref)
-
-    if output_caps != new_caps do
-      {:ok, caps: {:output, new_caps}}
-    else
-      {:ok, []}
-    end
+  defp update_caps(%{caps_changed: false} = state, _in_caps) do
+    {[], state}
   end
 
   defp generate_caps(input_caps, decoder_ref) do
