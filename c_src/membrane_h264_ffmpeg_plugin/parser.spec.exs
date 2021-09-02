@@ -3,7 +3,7 @@ module Membrane.H264.FFmpeg.Parser.Native
 state_type "State"
 
 type(
-  resolution :: %ResolutionChange{
+  resolution :: %Resolution{
     width: int,
     height: int,
     index: int
