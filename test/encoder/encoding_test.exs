@@ -29,7 +29,7 @@ defmodule DecodingTest do
 
     assert {:ok, pid} = make_pipeline(in_path, out_path, width, height, format)
     assert Pipeline.play(pid) == :ok
-    assert_end_of_stream(pid, :sink, :input, 3000)
+    assert_end_of_stream(pid, :sink, :input, 4000)
 
     Pipeline.stop_and_terminate(pid, blocking?: true)
   end
