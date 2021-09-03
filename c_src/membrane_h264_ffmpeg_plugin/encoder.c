@@ -112,8 +112,8 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
     }
 
     timestamps[*frame_cnt] = pkt->dts;
-    frames[*frame_cnt] =
-        unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, pkt->size);
+    frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
+    unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, pkt->size, frames[*frame_cnt]);
     memcpy(frames[*frame_cnt]->data, pkt->data, pkt->size);
     (*frame_cnt)++;
 
@@ -160,10 +160,13 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, State *s
   default:
     res_term = encode_result_ok(env, dts_list, frame_cnt, out_frames, frame_cnt);
   }
-  for (int i = 0; i < frame_cnt; i++) {
-    unifex_payload_release(out_frames[i]);
-  }
   if (out_frames != NULL) {
+    for (int i = 0; i < frame_cnt; i++) {
+      if (out_frames[i] != NULL) {
+        unifex_payload_release(out_frames[i]);
+        unifex_free(out_frames[i]);
+      }
+    }
     unifex_free(out_frames);
   }
   if (dts_list != NULL) {
@@ -191,10 +194,13 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
     res_term = encode_result_ok(env, dts_list, frame_cnt, out_frames, frame_cnt);
   }
 
-  for (int i = 0; i < frame_cnt; i++) {
-    unifex_payload_release(out_frames[i]);
-  }
   if (out_frames != NULL) {
+    for (int i = 0; i < frame_cnt; i++) {
+      if (out_frames[i] != NULL) {
+        unifex_payload_release(out_frames[i]);
+        unifex_free(out_frames[i]);
+      }
+    }
     unifex_free(out_frames);
   }
   if (dts_list != NULL) {
