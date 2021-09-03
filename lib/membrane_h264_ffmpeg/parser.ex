@@ -131,22 +131,35 @@ defmodule Membrane.H264.FFmpeg.Parser do
         state.first_frame_prefix <> payload
       end
 
-    with {:ok, sizes} <- Native.parse(payload, state.parser_ref) do
+    with {:ok, sizes, resolution_changes} <- Native.parse(payload, state.parser_ref) do
       {bufs, state} = parse_access_units(payload, sizes, metadata, state)
 
-      generated_caps = mk_caps(state)
-
-      caps =
-        if ctx.pads.output.caps != generated_caps and bufs != [] do
-          [caps: {:output, generated_caps}]
-        else
-          []
-        end
-
-      {{:ok, caps ++ [buffer: {:output, bufs}, redemand: :output]}, state}
+      actions = parse_resolution_changes(state, bufs, resolution_changes)
+      {{:ok, actions ++ [redemand: :output]}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
+  end
+
+  # analize resolution changes and generate appropriate caps before corresponding buffers
+  defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
+
+  defp parse_resolution_changes(_state, bufs, [], acc, _index_offset) do
+    acc ++ [buffer: {:output, bufs}]
+  end
+
+  defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc, index_offset) do
+    updated_index = meta.index - index_offset
+    {old_bufs, next_bufs} = Enum.split(bufs, updated_index)
+    next_caps = mk_caps(state, meta.width, meta.height)
+
+    parse_resolution_changes(
+      state,
+      next_bufs,
+      resolution_changes,
+      acc ++ [buffer: {:output, old_bufs}, caps: {:output, next_caps}],
+      meta.index
+    )
   end
 
   @impl true
@@ -249,8 +262,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
     %{state | timestamp: timestamp}
   end
 
-  defp mk_caps(state) do
-    {:ok, width, height, profile} = Native.get_parsed_meta(state.parser_ref)
+  defp mk_caps(state, width, height) do
+    {:ok, profile} = Native.get_profile(state.parser_ref)
 
     %H264{
       width: width,

@@ -12,6 +12,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   alias Membrane.Caps.Video.{H264, Raw}
   alias Membrane.H264.FFmpeg.Common
 
+  require Membrane.Logger
+
   def_input_pad :input,
     demand_unit: :buffers,
     caps: {H264, stream_format: :byte_stream, alignment: :au}
@@ -21,7 +23,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_init(_opts) do
-    state = %{decoder_ref: nil}
+    state = %{decoder_ref: nil, caps_changed: false}
     {:ok, state}
   end
 
@@ -47,13 +49,12 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     with {:ok, pts_list_h264_base, frames} <-
            Native.decode(payload, Common.to_h264_time_base(dts), decoder_ref),
          bufs = wrap_frames(pts_list_h264_base, frames),
-         in_caps = ctx.pads.input.caps,
-         out_caps = ctx.pads.output.caps,
-         {:ok, caps} <- get_caps_if_needed(in_caps, out_caps, decoder_ref) do
+         in_caps = ctx.pads.input.caps do
+      {caps, state} = update_caps_if_needed(state, in_caps)
+
       # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
       # but it is noop otherwise, so there is no point in implementing special logic for that case
       actions = Enum.concat([caps, bufs, [redemand: :output]])
-
       {{:ok, actions}, state}
     else
       {:error, reason} ->
@@ -63,8 +64,12 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_caps(:input, _caps, _ctx, state) do
-    # ignoring caps, new ones will be generated from decoder metadata
-    {:ok, state}
+    # only redeclaring decoder - new caps will be generated in handle_process, after decoding key_frame
+    with {:ok, decoder_ref} <- Native.create() do
+      {{:ok, redemand: :output}, %{state | decoder_ref: decoder_ref, caps_changed: true}}
+    else
+      {:error, reason} -> {{:error, reason}, state}
+    end
   end
 
   @impl true
@@ -93,25 +98,29 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     |> then(&[buffer: {:output, &1}])
   end
 
-  defp get_caps_if_needed(input_caps, nil, decoder_ref) do
-    with {:ok, width, height, pix_fmt} <- Native.get_metadata(decoder_ref) do
-      framerate =
-        case input_caps do
-          nil -> {0, 1}
-          %H264{framerate: in_framerate} -> in_framerate
-        end
-
-      caps = %Raw{
-        aligned: true,
-        format: pix_fmt,
-        framerate: framerate,
-        height: height,
-        width: width
-      }
-
-      {:ok, caps: {:output, caps}}
-    end
+  defp update_caps_if_needed(%{caps_changed: true, decoder_ref: decoder_ref} = state, in_caps) do
+    {[caps: {:output, generate_caps(in_caps, decoder_ref)}], %{state | caps_changed: false}}
   end
 
-  defp get_caps_if_needed(_in_caps, _out_caps, _decoder_ref), do: {:ok, []}
+  defp update_caps_if_needed(%{caps_changed: false} = state, _in_caps) do
+    {[], state}
+  end
+
+  defp generate_caps(input_caps, decoder_ref) do
+    {:ok, width, height, pix_fmt} = Native.get_metadata(decoder_ref)
+
+    framerate =
+      case input_caps do
+        nil -> {0, 1}
+        %H264{framerate: in_framerate} -> in_framerate
+      end
+
+    %Raw{
+      aligned: true,
+      format: pix_fmt,
+      framerate: framerate,
+      height: height,
+      width: width
+    }
+  end
 end
