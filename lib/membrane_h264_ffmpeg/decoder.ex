@@ -50,7 +50,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
            Native.decode(payload, Common.to_h264_time_base(dts), decoder_ref),
          bufs = wrap_frames(pts_list_h264_base, frames),
          in_caps = ctx.pads.input.caps do
-      {caps, state} = update_caps(state, in_caps)
+      {caps, state} = update_caps_if_needed(state, in_caps)
 
       # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
       # but it is noop otherwise, so there is no point in implementing special logic for that case
@@ -98,11 +98,11 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     |> then(&[buffer: {:output, &1}])
   end
 
-  defp update_caps(%{caps_changed: true, decoder_ref: decoder_ref} = state, in_caps) do
+  defp update_caps_if_needed(%{caps_changed: true, decoder_ref: decoder_ref} = state, in_caps) do
     {[caps: {:output, generate_caps(in_caps, decoder_ref)}], %{state | caps_changed: false}}
   end
 
-  defp update_caps(%{caps_changed: false} = state, _in_caps) do
+  defp update_caps_if_needed(%{caps_changed: false} = state, _in_caps) do
     {[], state}
   end
 

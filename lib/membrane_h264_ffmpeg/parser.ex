@@ -151,14 +151,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc, index_offset) do
     updated_index = meta.index - index_offset
     {old_bufs, next_bufs} = Enum.split(bufs, updated_index)
-    # caps for next buffers (not old_bufs!)
-    new_caps = mk_caps(state, meta.width, meta.height)
+    next_caps = mk_caps(state, meta.width, meta.height)
 
     parse_resolution_changes(
       state,
       next_bufs,
       resolution_changes,
-      acc ++ [buffer: {:output, old_bufs}, caps: {:output, new_caps}],
+      acc ++ [buffer: {:output, old_bufs}, caps: {:output, next_caps}],
       meta.index
     )
   end
@@ -262,20 +261,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
     timestamp = timestamp + Ratio.new(denom * Membrane.Time.second(), num)
     %{state | timestamp: timestamp}
   end
-
-  # defp mk_caps(state) do
-  #   {:ok, width, height, profile} = Native.get_parsed_meta(state.parser_ref)
-
-  #   %H264{
-  #     width: width,
-  #     height: height,
-  #     framerate: state.framerate,
-  #     alignment: state.alignment,
-  #     nalu_in_metadata?: state.attach_nalus?,
-  #     stream_format: :byte_stream,
-  #     profile: profile
-  #   }
-  # end
 
   defp mk_caps(state, width, height) do
     {:ok, profile} = Native.get_profile(state.parser_ref)

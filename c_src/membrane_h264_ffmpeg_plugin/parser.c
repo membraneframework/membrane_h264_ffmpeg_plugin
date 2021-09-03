@@ -100,8 +100,7 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
 
         resolution new_res = {state->parser_ctx->width,
                               state->parser_ctx->height, frames_cnt};
-        changes[changes_cnt] = new_res;
-        changes_cnt++;
+        changes[changes_cnt++] = new_res;
 
         last_res = &new_res;
       }
