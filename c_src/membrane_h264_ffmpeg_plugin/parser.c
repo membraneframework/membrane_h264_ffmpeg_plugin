@@ -72,7 +72,6 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   memset(payload->data + old_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 
   pkt = av_packet_alloc();
-  av_init_packet(pkt);
 
   uint8_t *data_ptr = payload->data;
   size_t data_left = old_size;

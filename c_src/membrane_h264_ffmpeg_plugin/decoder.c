@@ -98,7 +98,6 @@ UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, int64_t dts, State *s
   UnifexPayload **out_frames = NULL;
   int64_t *best_effort_timestamps = NULL;
   pkt = av_packet_alloc();
-  av_init_packet(pkt);
   pkt->data = payload->data;
   pkt->size = payload->size;
   pkt->dts = dts;
