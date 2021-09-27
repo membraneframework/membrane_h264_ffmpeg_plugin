@@ -120,10 +120,10 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_caps(:input, %Raw{} = caps, _ctx, %{encoder_ref: encoder_ref} = state) do
+  def handle_caps(:input, %Raw{} = caps, _ctx, state) do
     {framerate_num, framerate_denom} = caps.framerate
 
-    with {:ok, buffers} = flush_encoder_if_exists(encoder_ref),
+    with {:ok, buffers} = flush_encoder_if_exists(state),
          {:ok, new_encoder_ref} <-
            Native.create(
              caps.width,
@@ -143,8 +143,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_end_of_stream(:input, _ctx, %{encoder_ref: encoder_ref} = state) do
-    with {:ok, buffers} <- flush_encoder_if_exists(encoder_ref) do
+  def handle_end_of_stream(:input, _ctx, state) do
+    with {:ok, buffers} <- flush_encoder_if_exists(state) do
       actions = buffers ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}
     else
@@ -157,11 +157,11 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     {:ok, %{state | encoder_ref: nil}}
   end
 
-  defp flush_encoder_if_exists(nil) do
+  defp flush_encoder_if_exists(%{encoder_ref: nil}) do
     {:ok, []}
   end
 
-  defp flush_encoder_if_exists(encoder_ref) do
+  defp flush_encoder_if_exists(%{encoder_ref: encoder_ref}) do
     with {:ok, dts_list, frames} <- Native.flush(encoder_ref) do
       buffers = wrap_frames(dts_list, frames)
       {:ok, buffers}
