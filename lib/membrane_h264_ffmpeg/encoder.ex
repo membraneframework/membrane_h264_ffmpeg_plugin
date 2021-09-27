@@ -89,29 +89,17 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, ctx, state) do
+  def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, _ctx, state) do
     %{encoder_ref: encoder_ref} = state
     pts = metadata[:pts] || 0
 
     with {:ok, dts_list, frames} <-
            Native.encode(payload, Common.to_h264_time_base(pts), encoder_ref) do
       bufs = wrap_frames(dts_list, frames)
-      in_caps = ctx.pads.input.caps
-
-      caps =
-        {:output,
-         %H264{
-           alignment: :au,
-           framerate: in_caps.framerate,
-           height: in_caps.height,
-           width: in_caps.width,
-           profile: state.profile,
-           stream_format: :byte_stream
-         }}
 
       # redemand is needed until the internal buffer of encoder is filled (no buffers will be
       # generated before that) but it is a noop if the demand has been fulfilled
-      actions = [{:caps, caps} | bufs] ++ [redemand: :output]
+      actions = bufs ++ [redemand: :output]
       {{:ok, actions}, state}
     else
       {:error, reason} ->
@@ -123,7 +111,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def handle_caps(:input, %Raw{} = caps, _ctx, state) do
     {framerate_num, framerate_denom} = caps.framerate
 
-    with {:ok, encoder_ref} <-
+    with {:ok, buffers} <- flush_encoder_if_exists(state),
+         {:ok, new_encoder_ref} <-
            Native.create(
              caps.width,
              caps.height,
@@ -134,7 +123,9 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              framerate_denom,
              state.crf
            ) do
-      {{:ok, redemand: :output}, %{state | encoder_ref: encoder_ref}}
+      caps = create_new_caps(caps, state)
+      actions = buffers ++ [caps: caps, redemand: :output]
+      {{:ok, actions}, %{state | encoder_ref: new_encoder_ref}}
     else
       {:error, reason} -> {{:error, reason}, state}
     end
@@ -142,9 +133,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, dts_list, frames} <- Native.flush(state.encoder_ref),
-         bufs <- wrap_frames(dts_list, frames) do
-      actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
+    with {:ok, buffers} <- flush_encoder_if_exists(state) do
+      actions = buffers ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}
     else
       {:error, reason} -> {{:error, reason}, state}
@@ -156,6 +146,17 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     {:ok, %{state | encoder_ref: nil}}
   end
 
+  defp flush_encoder_if_exists(%{encoder_ref: nil}) do
+    {:ok, []}
+  end
+
+  defp flush_encoder_if_exists(%{encoder_ref: encoder_ref}) do
+    with {:ok, dts_list, frames} <- Native.flush(encoder_ref) do
+      buffers = wrap_frames(dts_list, frames)
+      {:ok, buffers}
+    end
+  end
+
   defp wrap_frames([], []), do: []
 
   defp wrap_frames(dts_list, frames) do
@@ -164,5 +165,17 @@ defmodule Membrane.H264.FFmpeg.Encoder do
       %Buffer{metadata: %{dts: Common.to_membrane_time_base(dts)}, payload: frame}
     end)
     |> then(&[buffer: {:output, &1}])
+  end
+
+  defp create_new_caps(caps, state) do
+    {:output,
+     %H264{
+       alignment: :au,
+       framerate: caps.framerate,
+       height: caps.height,
+       width: caps.width,
+       profile: state.profile,
+       stream_format: :byte_stream
+     }}
   end
 end
