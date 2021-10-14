@@ -89,12 +89,12 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, _ctx, state) do
+  def handle_process(:input, buffer, _ctx, state) do
     %{encoder_ref: encoder_ref} = state
-    pts = metadata[:pts] || 0
+    pts = buffer.pts || 0
 
     with {:ok, dts_list, frames} <-
-           Native.encode(payload, Common.to_h264_time_base(pts), encoder_ref) do
+           Native.encode(buffer.payload, Common.to_h264_time_base(pts), encoder_ref) do
       bufs = wrap_frames(dts_list, frames)
 
       # redemand is needed until the internal buffer of encoder is filled (no buffers will be
@@ -162,7 +162,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   defp wrap_frames(dts_list, frames) do
     Enum.zip(dts_list, frames)
     |> Enum.map(fn {dts, frame} ->
-      %Buffer{metadata: %{dts: Common.to_membrane_time_base(dts)}, payload: frame}
+      %Buffer{dts: Common.to_membrane_time_base(dts), payload: frame}
     end)
     |> then(&[buffer: {:output, &1}])
   end
