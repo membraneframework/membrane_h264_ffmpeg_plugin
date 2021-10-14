@@ -65,8 +65,8 @@ defmodule DecoderTest do
 
     0..(frame_count - 1)
     |> Enum.each(fn i ->
-      assert_sink_buffer(pid, :sink, %Membrane.Buffer{metadata: metadata})
-      assert Ratio.mult(i, frame_duration) == metadata.pts
+      assert_sink_buffer(pid, :sink, %Membrane.Buffer{pts: pts})
+      assert Ratio.mult(i, frame_duration) == pts
     end)
 
     Testing.Pipeline.stop_and_terminate(pid, blocking?: true)
