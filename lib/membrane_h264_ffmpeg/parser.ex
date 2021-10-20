@@ -189,7 +189,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   defp parse_access_units(input, au_sizes, metadata, dts, %{partial_frame: <<>>} = state) do
-    state = update_metadata(metadata, dts, state)
+    state = %{state | metadata: metadata, timestamp: dts || state.timestamp}
     {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
     {buffers, %{state | partial_frame: input}}
   end
@@ -202,7 +202,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {first_au_buffers, input, state} =
       do_parse_access_units(state.partial_frame <> input, [au_size], state.metadata, state, [])
 
-    state = update_metadata(metadata, dts, state)
+    state = %{state | metadata: metadata, timestamp: dts || state.timestamp}
+
     {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
     {first_au_buffers ++ buffers, %{state | partial_frame: input}}
   end
@@ -224,19 +225,19 @@ defmodule Membrane.H264.FFmpeg.Parser do
         %{alignment: :au, attach_nalus?: true} ->
           [
             %Buffer{
-              dts: state.timestamp,
+              dts: state.timestamp |> Ratio.trunc(),
               payload: au,
               metadata: put_in(au_metadata, [:h264, :nalus], nalus)
             }
           ]
 
         %{alignment: :au, attach_nalus?: false} ->
-          [%Buffer{dts: state.timestamp, payload: au, metadata: au_metadata}]
+          [%Buffer{dts: state.timestamp |> Ratio.trunc(), payload: au, metadata: au_metadata}]
 
         %{alignment: :nal} ->
           Enum.map(nalus, fn nalu ->
             %Buffer{
-              dts: state.timestamp,
+              dts: state.timestamp |> Ratio.trunc(),
               payload: :binary.part(au, nalu.prefixed_poslen),
               metadata: Map.merge(metadata, nalu.metadata)
             }
@@ -244,14 +245,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
       end
 
     do_parse_access_units(rest, au_sizes, metadata, bump_timestamp(state), [buffers | acc])
-  end
-
-  defp update_metadata(metadata, nil, state) do
-    %{state | metadata: metadata}
-  end
-
-  defp update_metadata(metadata, timestamp, state) do
-    %{state | timestamp: timestamp, metadata: metadata}
   end
 
   defp bump_timestamp(%{framerate: {0, _}} = state) do

@@ -42,12 +42,16 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{metadata: metadata, payload: payload} = buffer, ctx, state) do
+  def handle_process(:input, buffer, ctx, state) do
     %{decoder_ref: decoder_ref} = state
     dts = Buffer.get_dts_or_pts(buffer) || 0
 
     with {:ok, pts_list_h264_base, frames} <-
-           Native.decode(buffer.payload, Common.to_h264_time_base(dts), decoder_ref),
+           Native.decode(
+             buffer.payload,
+             Common.to_h264_time_base(dts) |> Ratio.trunc(),
+             decoder_ref
+           ),
          bufs = wrap_frames(pts_list_h264_base, frames),
          in_caps = ctx.pads.input.caps do
       {caps, state} = update_caps_if_needed(state, in_caps)
@@ -93,7 +97,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   defp wrap_frames(pts_list, frames) do
     Enum.zip(pts_list, frames)
     |> Enum.map(fn {pts, frame} ->
-      %Buffer{pts: Common.to_membrane_time_base(pts), payload: frame}
+      %Buffer{pts: Common.to_membrane_time_base(pts) |> Ratio.trunc(), payload: frame}
     end)
     |> then(&[buffer: {:output, &1}])
   end
