@@ -13,7 +13,7 @@ defmodule DecodingTest do
     {in_path, out_path}
   end
 
-  defp make_pipeline(in_path, out_path, width, height, format \\ :I420) do
+  defp make_pipeline(in_path, out_path, width, height, format) do
     Pipeline.start_link(%Pipeline.Options{
       elements: [
         file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},

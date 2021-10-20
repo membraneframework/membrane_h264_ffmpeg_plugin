@@ -4,6 +4,7 @@ defmodule DecoderTest do
   alias Membrane.H264
   alias Membrane.Testing
   alias Membrane.Testing.Pipeline
+  alias Membrane.H264.FFmpeg.Common
 
   @framerate 30
 
@@ -65,8 +66,19 @@ defmodule DecoderTest do
 
     0..(frame_count - 1)
     |> Enum.each(fn i ->
+      expected_pts =
+        Ratio.mult(i, frame_duration)
+        # trunc in parser
+        |> Ratio.trunc()
+        |> Common.to_h264_time_base()
+        # trunc before passing time to native decoder
+        |> Ratio.trunc()
+        |> Common.to_membrane_time_base()
+        # trunc after rebasing time to membrane time base
+        |> Ratio.trunc()
+
       assert_sink_buffer(pid, :sink, %Membrane.Buffer{pts: pts})
-      assert Ratio.mult(i, frame_duration) == pts
+      assert expected_pts == pts
     end)
 
     Testing.Pipeline.stop_and_terminate(pid, blocking?: true)

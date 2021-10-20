@@ -4,18 +4,15 @@ defmodule Membrane.H264.FFmpeg.Common do
   @h264_time_base 90_000
 
   @doc """
-  Decoder and encoder requires timestamps in h264 time base, that is 1/90_000 [s]
-  timestamps produced by this function are passed to the decoder so
-  they must be integers.
+  Converts time in membrane time base (1 [ns]) to h264 time base (1/90_000 [s])
   """
   @spec to_h264_time_base(number | Ratio.t()) :: integer
   def to_h264_time_base(timestamp) do
-    (timestamp * @h264_time_base / Membrane.Time.second()) |> Ratio.trunc()
+    timestamp * @h264_time_base / Membrane.Time.second()
   end
 
   @doc """
-  All timestamps in membrane should be represented in the internal units, that is 1 [ns]
-  this function can return rational number.
+  Converts time from h264 time base (1/90_000 [s]) to membrane time base (1 [ns])
   """
   @spec to_membrane_time_base(number | Ratio.t()) :: number | Ratio.t()
   def to_membrane_time_base(timestamp) do

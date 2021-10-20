@@ -100,7 +100,12 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     pts = buffer.pts || 0
 
     with {:ok, dts_list, frames} <-
-      Native.encode(buffer.payload, Common.to_h264_time_base(pts), use_shm?, encoder_ref) do
+           Native.encode(
+             buffer.payload,
+             Common.to_h264_time_base(pts) |> Ratio.trunc(),
+             use_shm?,
+             encoder_ref
+           ) do
       bufs = wrap_frames(dts_list, frames)
 
       # redemand is needed until the internal buffer of encoder is filled (no buffers will be
@@ -168,7 +173,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   defp wrap_frames(dts_list, frames) do
     Enum.zip(dts_list, frames)
     |> Enum.map(fn {dts, frame} ->
-      %Buffer{dts: Common.to_membrane_time_base(dts), payload: frame}
+      %Buffer{dts: Common.to_membrane_time_base(dts) |> Ratio.trunc(), payload: frame}
     end)
     |> then(&[buffer: {:output, &1}])
   end
