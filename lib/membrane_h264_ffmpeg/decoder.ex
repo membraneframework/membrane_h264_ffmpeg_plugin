@@ -14,6 +14,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   require Membrane.Logger
 
+  @no_pts -9_223_372_036_854_775_808
+
   def_options use_shm?: [
                 type: :boolean,
                 desciption:
@@ -50,15 +52,17 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_process(:input, buffer, ctx, state) do
-    %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
-    dts = Buffer.get_dts_or_pts(buffer) || 0
+  %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
+    dts = (Buffer.get_dts_or_pts(buffer) || 0) |> Common.to_h264_time_base() |> Ratio.trunc()
+    pts = if(buffer.pts, do: Common.to_h264_time_base(buffer.pts), else: @no_pts) |> Ratio.trunc()
 
     with {:ok, pts_list_h264_base, frames} <-
            Native.decode(
              buffer.payload,
-             Common.to_h264_time_base(dts) |> Ratio.trunc(),
-             use_shm?,
-             decoder_ref
+             pts,
+             dts,
+            use_shm?,
+            decoder_ref
            ),
          bufs = wrap_frames(pts_list_h264_base, frames),
          in_caps = ctx.pads.input.caps do
