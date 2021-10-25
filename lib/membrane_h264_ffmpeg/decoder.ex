@@ -52,8 +52,9 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_process(:input, buffer, ctx, state) do
-  %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
-    dts = (Buffer.get_dts_or_pts(buffer) || 0) |> Common.to_h264_time_base() |> Ratio.trunc()
+    %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
+
+    dts = if(buffer.dts, do: Common.to_h264_time_base(buffer.dts), else: @no_pts) |> Ratio.trunc()
     pts = if(buffer.pts, do: Common.to_h264_time_base(buffer.pts), else: @no_pts) |> Ratio.trunc()
 
     with {:ok, pts_list_h264_base, frames} <-

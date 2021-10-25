@@ -97,6 +97,10 @@ defmodule DecoderTest do
       perform_decoding_test("20-360p-I422", 1000)
     end
 
+    test "decode 10 720p frames with B frames in main profile" do
+      perform_decoding_test("10-720p-main", 1000)
+    end
+
     test "append correct timestamps to 10 720p frames" do
       perform_timestamping_test("10-720p-no-b-frames", 10)
     end

@@ -58,6 +58,7 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   int ret;
   size_t max_frames = 32, frames_cnt = 0, max_changes = 5, changes_cnt = 0;
   unsigned *out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
+  int* output_picture_numbers = unifex_alloc(max_frames * sizeof(int));
   resolution *changes = unifex_alloc(max_changes * sizeof(resolution));
 
   AVPacket *pkt = NULL;
@@ -108,15 +109,18 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
         max_frames *= 2;
         out_frame_sizes =
             unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
+        output_picture_numbers = 
+            unifex_realloc(output_picture_numbers, max_frames * sizeof(int));
       }
 
       out_frame_sizes[frames_cnt] = pkt->size;
+      output_picture_numbers[frames_cnt] = state->parser_ctx->output_picture_number / 2;
       frames_cnt++;
     }
   }
 
   res_term =
-      parse_result_ok(env, out_frame_sizes, frames_cnt, changes, changes_cnt);
+      parse_result_ok(env, out_frame_sizes, frames_cnt, output_picture_numbers, frames_cnt, changes, changes_cnt);
 exit_parse_frames:
   unifex_free(out_frame_sizes);
   unifex_free(changes);
@@ -179,8 +183,8 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   }
 
   if (out_frame_size == 0) {
-    return flush_result_ok(env, NULL, 0);
+    return flush_result_ok(env, NULL, 0, NULL, 0);
   }
-
-  return flush_result_ok(env, &out_frame_size, 1);
+  int x = 0;
+  return flush_result_ok(env, &out_frame_size, 1, &x, 1);
 }

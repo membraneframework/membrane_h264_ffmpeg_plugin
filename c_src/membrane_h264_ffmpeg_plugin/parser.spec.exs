@@ -13,11 +13,12 @@ type(
 spec create() :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
 spec parse(payload, state) ::
-       {:ok :: label, frame_sizes :: [unsigned], resolutions :: [resolution]}
+       {:ok :: label, frame_sizes :: [unsigned], output_picture_numbers :: [int],
+        resolutions :: [resolution]}
        | {:error :: label, reason :: atom}
 
 spec get_profile(state) :: {:ok :: label, profile :: atom}
 
 spec flush(state) ::
-       {:ok :: label, frame_sizes :: [unsigned]}
+       {:ok :: label, frame_sizes :: [unsigned], output_picture_numbers :: [int]}
        | {:error :: label, reason :: atom}
