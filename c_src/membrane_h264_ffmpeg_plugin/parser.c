@@ -185,6 +185,6 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   if (out_frame_size == 0) {
     return flush_result_ok(env, NULL, 0, NULL, 0);
   }
-  int x = 0;
-  return flush_result_ok(env, &out_frame_size, 1, &x, 1);
+  int output_picture_number = state->parser_ctx->output_picture_number / 2;
+  return flush_result_ok(env, &out_frame_size, 1, &output_picture_number, 1);
 }
