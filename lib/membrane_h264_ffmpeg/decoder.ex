@@ -62,8 +62,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
              buffer.payload,
              pts,
              dts,
-            use_shm?,
-            decoder_ref
+             use_shm?,
+             decoder_ref
            ),
          bufs = wrap_frames(pts_list_h264_base, frames),
          in_caps = ctx.pads.input.caps do

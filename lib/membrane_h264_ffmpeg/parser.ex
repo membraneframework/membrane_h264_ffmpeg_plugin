@@ -93,8 +93,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
       skip_until_keyframe?: opts.skip_until_keyframe?,
       metadata: nil,
       last_frame_number: 0,
-      last_pts: nil,
-      last_dts: nil,
       frame_number_offset: 0
     }
 
@@ -136,7 +134,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
     with {:ok, sizes, output_picture_numbers, resolution_changes} <-
            Native.parse(payload, state.parser_ref) do
-      {bufs, state} = parse_access_units(payload, sizes, buffer, output_picture_numbers, state)
+      metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
+      {bufs, state} = parse_access_units(payload, sizes, metadata, output_picture_numbers, state)
 
       actions = parse_resolution_changes(state, bufs, resolution_changes)
       {{:ok, actions ++ [redemand: :output]}, state}
@@ -175,12 +174,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
     with {:ok, sizes, output_picture_numbers} <- Native.flush(state.parser_ref) do
-      {bufs, state} = parse_access_units(<<>>, sizes, %{metadata: state.metadata.buffer_metadata, dts: state.last_dts, pts: state.last_pts}, output_picture_numbers, state)
+      {bufs, state} =
+        parse_access_units(<<>>, sizes, state.metadata, output_picture_numbers, state)
 
       if state.partial_frame != <<>> do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
       end
-
 
       actions = [buffer: {:output, bufs}, end_of_stream: :output]
       {{:ok, actions}, state}
@@ -192,10 +191,18 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp parse_access_units(input, au_sizes, buffer, output_picture_numbers, %{partial_frame: <<>>} = state) do
-    metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
-    state = %{state | metadata: metadata }
-    {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, output_picture_numbers, state, [])
+  defp parse_access_units(
+         input,
+         au_sizes,
+         metadata,
+         output_picture_numbers,
+         %{partial_frame: <<>>} = state
+       ) do
+    state = %{state | metadata: metadata}
+
+    {buffers, input, state} =
+      do_parse_access_units(input, au_sizes, metadata, output_picture_numbers, state, [])
+
     {buffers, %{state | partial_frame: input}}
   end
 
@@ -203,14 +210,22 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {[], %{state | partial_frame: state.partial_frame <> input}}
   end
 
-  defp parse_access_units(input, [au_size | au_sizes], buffer, output_picture_numbers, state) do
+  defp parse_access_units(input, [au_size | au_sizes], metadata, output_picture_numbers, state) do
     {first_au_buffers, input, state} =
-      do_parse_access_units(state.partial_frame <> input, [au_size], state.metadata, output_picture_numbers, state, [])
+      do_parse_access_units(
+        state.partial_frame <> input,
+        [au_size],
+        state.metadata,
+        output_picture_numbers,
+        state,
+        []
+      )
 
-    metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
-    state = %{state | metadata: metadata }
+    state = %{state | metadata: metadata}
 
-    {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, output_picture_numbers, state, [])
+    {buffers, input, state} =
+      do_parse_access_units(input, au_sizes, state.metadata, output_picture_numbers, state, [])
+
     {first_au_buffers ++ buffers, %{state | partial_frame: input}}
   end
 
@@ -218,21 +233,42 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {Enum.reverse(acc), input, state}
   end
 
-  defp do_parse_access_units(input, [au_size | au_sizes], metadata, output_frame_numbers, state, acc) do
+  defp do_parse_access_units(
+         input,
+         [au_size | au_sizes],
+         metadata,
+         output_frame_numbers,
+         state,
+         acc
+       ) do
     <<au::binary-size(au_size), rest::binary>> = input
 
     [output_frame_number | output_frame_numbers] = output_frame_numbers
 
-    {{pts, dts}, state} = if state.framerate do
-      {frames, seconds} = state.framerate
-      state = if output_frame_number == 0, do: %{state | frame_number_offset: state.frame_number_offset + state.last_frame_number}, else: state
-      pts = div((output_frame_number + state.frame_number_offset) * Membrane.Time.second() * seconds, frames)
-      dts = div(state.last_frame_number * Membrane.Time.second() * seconds, frames)
+    {{pts, dts}, state} =
+      if state.framerate do
+        {frames, seconds} = state.framerate
 
-      {{pts, dts}, %{state | last_frame_number: state.last_frame_number + 1}}
-    else
-      {{metadata.pts, metadata.dts}, %{state | last_pts: metadata.pts, last_dts: metadata.dts}}
-    end
+        state =
+          if output_frame_number == 0,
+            do: %{
+              state
+              | frame_number_offset: state.frame_number_offset + state.last_frame_number
+            },
+            else: state
+
+        pts =
+          div(
+            (output_frame_number + state.frame_number_offset) * seconds * Membrane.Time.second(),
+            frames
+          )
+
+        dts = div(state.last_frame_number * seconds * Membrane.Time.second(), frames)
+
+        {{pts, dts}, %{state | last_frame_number: state.last_frame_number + 1}}
+      else
+        {{metadata.pts, metadata.dts}, state}
+      end
 
     {nalus, au_metadata} = NALu.parse(au)
     au_metadata = Map.merge(metadata.buffer_metadata, au_metadata)
