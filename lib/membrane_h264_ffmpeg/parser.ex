@@ -94,7 +94,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
       metadata: nil,
       last_frame_number: 0,
       last_pts: nil,
-      last_dts: nil
+      last_dts: nil,
+      frame_number_offset: 0
     }
 
     {:ok, state}
@@ -160,16 +161,18 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp add_timestamps_to_buffers(buffers, _pts, _dts, output_picture_numbers, state) do
     {frames, seconds} = state.framerate
 
-    {buffers, last_frame_number} =
+    {buffers, state} =
       Enum.zip(buffers, output_picture_numbers)
-      |> Enum.map_reduce(state.last_frame_number, fn {buffer, output_frame_number},
-                                                     frame_number ->
-        pts = div(output_frame_number * Membrane.Time.second() * seconds, frames)
-        dts = div(frame_number * Membrane.Time.second() * seconds, frames)
-        {%{buffer | pts: pts, dts: dts}, frame_number + 1}
+      |> Enum.map_reduce(state, fn {buffer, output_frame_number},
+                                                     state ->
+        state = if output_frame_number == 0, do: %{state | frame_number_offset: state.frame_number_offset + state.last_frame_number}, else: state
+        pts = div((output_frame_number + state.frame_number_offset) * Membrane.Time.second() * seconds, frames)
+        dts = div(state.last_frame_number * Membrane.Time.second() * seconds, frames)
+
+        {%{buffer | pts: pts, dts: dts}, %{state | last_frame_number: state.last_frame_number + 1}}
       end)
 
-    {buffers, %{state | last_frame_number: last_frame_number}}
+    {buffers, state}
   end
 
   # analize resolution changes and generate appropriate caps before corresponding buffers
@@ -230,7 +233,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp parse_access_units(input, au_sizes, metadata, %{partial_frame: <<>>} = state) do
     state = %{state | metadata: metadata}
     {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
-    {List.flatten(buffers), %{state | partial_frame: input}}
+    {buffers, %{state | partial_frame: input}}
   end
 
   defp parse_access_units(input, [], _metadata, state) do
@@ -244,7 +247,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     state = %{state | metadata: metadata}
 
     {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
-    {List.flatten(first_au_buffers ++ buffers), %{state | partial_frame: input}}
+    {first_au_buffers ++ buffers, %{state | partial_frame: input}}
   end
 
   defp do_parse_access_units(input, [], _metadata, state, acc) do
