@@ -69,7 +69,7 @@ static int get_frames(UnifexEnv *env, AVPacket *pkt,
         state->codec_ctx->pix_fmt, frame->width, frame->height, 1);
 
     frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
-    unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, payload_size, frames[*frame_cnt]);
+    unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, payload_size, frames[*frame_cnt]);
     timestamps[*frame_cnt] = frame->best_effort_timestamp;
 
     av_image_copy_to_buffer(

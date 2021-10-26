@@ -113,7 +113,7 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
 
     timestamps[*frame_cnt] = pkt->dts;
     frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
-    unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, pkt->size, frames[*frame_cnt]);
+    unifex_payload_alloc(env, UNIFEX_PAYLOAD_BINARY, pkt->size, frames[*frame_cnt]);
     memcpy(frames[*frame_cnt]->data, pkt->data, pkt->size);
     (*frame_cnt)++;
 
