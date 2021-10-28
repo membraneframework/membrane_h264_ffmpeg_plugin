@@ -15,10 +15,10 @@ spec create(
 
 spec get_frame_size(state) :: {:ok :: label, frame_size :: int} | {:error :: label}
 
-spec encode(payload, pts :: int64, state) ::
+spec encode(payload, pts :: int64, shared_payload :: bool, state) ::
        {:ok :: label, dts_list :: [int64], [payload]} | {:error :: label, reason :: atom}
 
-spec flush(state) ::
+spec flush(shared_payload :: bool, state) ::
        {:ok :: label, dts_list :: [int64], frames :: [payload]}
        | {:error :: label, reason :: atom}
 

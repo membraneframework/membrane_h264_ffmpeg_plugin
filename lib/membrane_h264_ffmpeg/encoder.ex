@@ -70,6 +70,11 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 type: :atom,
                 spec: H264.profile_t(),
                 default: :high
+              ],
+              shared_payload: [
+                type: :boolean,
+                desciption: "If true, native encoder will use shared memory for storing frames",
+                default: false
               ]
 
   @impl true
@@ -90,11 +95,11 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @impl true
   def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, _ctx, state) do
-    %{encoder_ref: encoder_ref} = state
+    %{encoder_ref: encoder_ref, shared_payload: shared_payload} = state
     pts = metadata[:pts] || 0
 
     with {:ok, dts_list, frames} <-
-           Native.encode(payload, Common.to_h264_time_base(pts), encoder_ref) do
+           Native.encode(payload, Common.to_h264_time_base(pts), shared_payload, encoder_ref) do
       bufs = wrap_frames(dts_list, frames)
 
       # redemand is needed until the internal buffer of encoder is filled (no buffers will be
@@ -150,8 +155,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     {:ok, []}
   end
 
-  defp flush_encoder_if_exists(%{encoder_ref: encoder_ref}) do
-    with {:ok, dts_list, frames} <- Native.flush(encoder_ref) do
+  defp flush_encoder_if_exists(%{encoder_ref: encoder_ref, shared_payload: shared_payload}) do
+    with {:ok, dts_list, frames} <- Native.flush(shared_payload, encoder_ref) do
       buffers = wrap_frames(dts_list, frames)
       {:ok, buffers}
     end
