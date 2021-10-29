@@ -14,6 +14,13 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   require Membrane.Logger
 
+  def_options use_shm?: [
+                type: :boolean,
+                desciption:
+                  "If true, native decoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
+                default: false
+              ]
+
   def_input_pad :input,
     demand_unit: :buffers,
     caps: {H264, stream_format: :byte_stream, alignment: :au}
@@ -22,8 +29,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
 
   @impl true
-  def handle_init(_opts) do
-    state = %{decoder_ref: nil, caps_changed: false}
+  def handle_init(opts) do
+    state = %{decoder_ref: nil, caps_changed: false, use_shm?: opts.use_shm?}
     {:ok, state}
   end
 
@@ -43,11 +50,11 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_process(:input, %Buffer{metadata: metadata, payload: payload}, ctx, state) do
-    %{decoder_ref: decoder_ref} = state
+    %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
     dts = metadata[:dts] || 0
 
     with {:ok, pts_list_h264_base, frames} <-
-           Native.decode(payload, Common.to_h264_time_base(dts), decoder_ref),
+           Native.decode(payload, Common.to_h264_time_base(dts), use_shm?, decoder_ref),
          bufs = wrap_frames(pts_list_h264_base, frames),
          in_caps = ctx.pads.input.caps do
       {caps, state} = update_caps_if_needed(state, in_caps)
@@ -74,7 +81,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, best_effort_pts_list, frames} <- Native.flush(state.decoder_ref),
+    with {:ok, best_effort_pts_list, frames} <-
+           Native.flush(state.use_shm?, state.decoder_ref),
          bufs <- wrap_frames(best_effort_pts_list, frames) do
       actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
       {{:ok, actions}, state}

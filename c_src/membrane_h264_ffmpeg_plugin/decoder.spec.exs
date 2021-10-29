@@ -4,11 +4,11 @@ state_type "State"
 
 spec create() :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
-spec decode(payload, dts :: int64, state) ::
+spec decode(payload, dts :: int64, use_shm :: bool, state) ::
        {:ok :: label, best_effort_ts :: [int64], frames :: [payload]}
        | {:error :: label, reason :: atom}
 
-spec flush(state) ::
+spec flush(use_shm :: bool, state) ::
        {:ok :: label, best_effort_ts :: [int64], frames :: [payload]}
        | {:error :: label, reason :: atom}
 

@@ -87,7 +87,7 @@ UNIFEX_TERM get_frame_size(UnifexEnv *env, State *state) {
 
 static int get_frames(UnifexEnv *env, AVFrame *frame,
                       UnifexPayload ***ret_frames, int64_t **dts_list, int *max_frames,
-                      int *frame_cnt, State *state) {
+                      int *frame_cnt, int use_shm, State *state) {
   AVPacket *pkt = av_packet_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
   int64_t *timestamps = unifex_alloc((*max_frames) * sizeof(*timestamps));
@@ -113,7 +113,14 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
 
     timestamps[*frame_cnt] = pkt->dts;
     frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
-    unifex_payload_alloc(env, UNIFEX_PAYLOAD_SHM, pkt->size, frames[*frame_cnt]);
+    UnifexPayload payload_frame;
+    UnifexPayloadType payload_type;
+    if (use_shm) {
+      payload_type = UNIFEX_PAYLOAD_SHM;
+    } else {
+      payload_type = UNIFEX_PAYLOAD_BINARY;
+    }
+    unifex_payload_alloc(env, payload_type, pkt->size, frames[*frame_cnt]);
     memcpy(frames[*frame_cnt]->data, pkt->data, pkt->size);
     (*frame_cnt)++;
 
@@ -127,7 +134,7 @@ exit_get_frames:
   return ret;
 }
 
-UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, State *state) {
+UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, int use_shm, State *state) {
   UNIFEX_TERM res_term;
   int res = 0;
   int max_frames = 16, frame_cnt = 0;
@@ -148,7 +155,7 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, State *s
   }
   state->last_pts = frame->pts;
   
-  res = get_frames(env, frame, &out_frames, &dts_list, &max_frames, &frame_cnt, state);
+  res = get_frames(env, frame, &out_frames, &dts_list, &max_frames, &frame_cnt, use_shm, state);
 
   switch (res) {
   case ENCODER_SEND_FRAME_ERROR:
@@ -176,13 +183,13 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, State *s
   return res_term;
 }
 
-UNIFEX_TERM flush(UnifexEnv *env, State *state) {
+UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
   UNIFEX_TERM res_term;
   int max_frames = 16, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
   int64_t *dts_list = NULL;
 
-  int res = get_frames(env, NULL, &out_frames, &dts_list, &max_frames, &frame_cnt, state);
+  int res = get_frames(env, NULL, &out_frames, &dts_list, &max_frames, &frame_cnt, use_shm, state);
   switch (res) {
   case ENCODER_SEND_FRAME_ERROR:
     res_term = encode_result_error(env, "send_frame");
