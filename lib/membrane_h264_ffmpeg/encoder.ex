@@ -76,6 +76,12 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 desciption:
                   "If true, native encoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
                 default: false
+              ],
+              max_b_frames: [
+                type: :int,
+                description:
+                  "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
+                default: -1
               ]
 
   @impl true
@@ -125,6 +131,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              caps.format,
              state.preset,
              state.profile,
+             state.max_b_frames,
              framerate_num,
              framerate_denom,
              state.crf
