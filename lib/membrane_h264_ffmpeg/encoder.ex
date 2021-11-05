@@ -68,8 +68,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 to decode video encoded with this element.
                 """,
                 type: :atom,
-                spec: H264.profile_t(),
-                default: :high
+                spec: H264.profile_t() | :auto,
+                default: :auto
               ],
               use_shm?: [
                 type: :boolean,
