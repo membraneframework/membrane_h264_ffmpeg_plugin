@@ -17,6 +17,9 @@ UNIFEX_TERM create(UnifexEnv *env) {
   State *state = unifex_alloc_state(env);
   state->codec_ctx = NULL;
   state->parser_ctx = NULL;
+  // initially last_frame_number is set to -1 because first frame (with frame number 0) was not received yet.
+  state->last_frame_number = -1; 
+  state->frame_number_offset = 0;
 
   AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
   if (!codec) {
@@ -51,6 +54,13 @@ static int resolution_changed(resolution last_res, State *state) {
   // consider only width and height in metadata comparison
   return (state->parser_ctx->width != last_res.width) ||
          (state->parser_ctx->height != last_res.height);
+}
+ 
+void update_last_frame_number(int frame_number, State *state) {
+  if(frame_number == 0) {
+    state->frame_number_offset = state->last_frame_number + 1;
+  }
+  state->last_frame_number = frame_number + state->frame_number_offset;
 }
 
 UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
@@ -112,9 +122,18 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
         output_picture_numbers = 
             unifex_realloc(output_picture_numbers, max_frames * sizeof(int));
       }
-
       out_frame_sizes[frames_cnt] = pkt->size;
-      output_picture_numbers[frames_cnt] = state->parser_ctx->output_picture_number / 2;
+      // "Note 2: the JM reference encoder increments POC by 2 for every complete frame." 
+      // from https://www.vcodex.com/h264avc-picture-management/ 
+      int output_picture_number = state->parser_ctx->output_picture_number / 2;
+      // Retrun error if first encountered frame has output_picture_number different from 0,
+      // first frame should be I frame with both PTS and DTS equal to 0
+      if (state->last_frame_number == -1 && output_picture_number != 0) {
+        res_term = parse_result_error(env, "first frame with frame number different form 0");
+        goto exit_parse_frames;
+      }
+      update_last_frame_number(output_picture_number, state);
+      output_picture_numbers[frames_cnt] = state->last_frame_number;
       frames_cnt++;
     }
   }
@@ -123,6 +142,7 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
       parse_result_ok(env, out_frame_sizes, frames_cnt, output_picture_numbers, frames_cnt, changes, changes_cnt);
 exit_parse_frames:
   unifex_free(out_frame_sizes);
+  unifex_free(output_picture_numbers);
   unifex_free(changes);
   av_packet_free(&pkt);
   unifex_payload_realloc(payload, old_size);
@@ -185,6 +205,9 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   if (out_frame_size == 0) {
     return flush_result_ok(env, NULL, 0, NULL, 0);
   }
+
+  // "Note 2: the JM reference encoder increments POC by 2 for every complete frame." 
+  // from https://www.vcodex.com/h264avc-picture-management/ 
   int output_picture_number = state->parser_ctx->output_picture_number / 2;
   return flush_result_ok(env, &out_frame_size, 1, &output_picture_number, 1);
 }

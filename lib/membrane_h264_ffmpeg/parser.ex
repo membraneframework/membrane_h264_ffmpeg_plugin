@@ -92,8 +92,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       attach_nalus?: opts.attach_nalus?,
       skip_until_keyframe?: opts.skip_until_keyframe?,
       metadata: nil,
-      last_frame_number: 0,
-      frame_number_offset: 0
+      last_frame_number: 0
     }
 
     {:ok, state}
@@ -136,7 +135,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
            Native.parse(payload, state.parser_ref) do
       metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
       {bufs, state} = parse_access_units(payload, sizes, metadata, output_picture_numbers, state)
-
       actions = parse_resolution_changes(state, bufs, resolution_changes)
       {{:ok, actions ++ [redemand: :output]}, state}
     else
@@ -249,17 +247,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
       if state.framerate do
         {frames, seconds} = state.framerate
 
-        state =
-          if output_frame_number == 0,
-            do: %{
-              state
-              | frame_number_offset: state.frame_number_offset + state.last_frame_number
-            },
-            else: state
-
         pts =
           div(
-            (output_frame_number + state.frame_number_offset) * seconds * Membrane.Time.second(),
+            output_frame_number * seconds * Membrane.Time.second(),
             frames
           )
 

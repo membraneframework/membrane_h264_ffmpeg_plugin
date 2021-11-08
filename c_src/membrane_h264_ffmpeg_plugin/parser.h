@@ -8,6 +8,8 @@
 typedef struct _h264_parser_state {
   AVCodecContext *codec_ctx;
   AVCodecParserContext *parser_ctx;
+  int last_frame_number;
+  int frame_number_offset;
 } State;
 
 #include "_generated/parser.h"
