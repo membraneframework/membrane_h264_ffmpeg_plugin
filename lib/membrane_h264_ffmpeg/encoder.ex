@@ -68,8 +68,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 to decode video encoded with this element.
                 """,
                 type: :atom,
-                spec: H264.profile_t() | :auto,
-                default: :auto
+                spec: H264.profile_t() | nil,
+                default: nil
               ],
               use_shm?: [
                 type: :boolean,
@@ -81,13 +81,26 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 type: :int,
                 description:
                   "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
-                default: -1
+                default: nil
               ]
 
   @impl true
   def handle_init(opts) do
-    state = Map.merge(opts, %{encoder_ref: nil})
+    state =
+      opts
+      |> max_b_frames_to_int_if_needed()
+      |> Map.put(:encoder_ref, nil)
+
     {:ok, state}
+  end
+
+  defp max_b_frames_to_int_if_needed(%{max_b_frames: nil} = opts) do
+    # translate `nil` value to C magic value
+    %{opts | max_b_frames: -1}
+  end
+
+  defp max_b_frames_to_int_if_needed(opts) do
+    opts
   end
 
   @impl true

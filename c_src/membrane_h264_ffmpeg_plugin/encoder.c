@@ -63,7 +63,7 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
   }
   av_dict_set(&params, "preset", preset, 0);
 
-  if (strcmp("auto", profile) != 0) {
+  if (strcmp("nil", profile) != 0) {
     av_dict_set(&params, "profile", profile, 0);
   }
   av_dict_set_int(&params, "crf", crf, 0);
