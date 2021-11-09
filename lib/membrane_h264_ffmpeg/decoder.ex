@@ -54,8 +54,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   def handle_process(:input, buffer, ctx, state) do
     %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
 
-    dts = if(buffer.dts, do: Common.to_h264_time_base(buffer.dts), else: @no_pts) |> Ratio.trunc()
-    pts = if(buffer.pts, do: Common.to_h264_time_base(buffer.pts), else: @no_pts) |> Ratio.trunc()
+    dts = if(buffer.dts, do: Common.to_h264_time_base_truncated(buffer.dts), else: @no_pts)
+    pts = if(buffer.pts, do: Common.to_h264_time_base_truncated(buffer.pts), else: @no_pts)
 
     with {:ok, pts_list_h264_base, frames} <-
            Native.decode(
@@ -111,7 +111,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   defp wrap_frames(pts_list, frames) do
     Enum.zip(pts_list, frames)
     |> Enum.map(fn {pts, frame} ->
-      %Buffer{pts: Common.to_membrane_time_base(pts) |> Ratio.trunc(), payload: frame}
+      %Buffer{pts: Common.to_membrane_time_base_truncated(pts), payload: frame}
     end)
     |> then(&[buffer: {:output, &1}])
   end

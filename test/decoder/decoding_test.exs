@@ -70,12 +70,8 @@ defmodule DecoderTest do
         Ratio.mult(i, frame_duration)
         # trunc in parser
         |> Ratio.trunc()
-        |> Common.to_h264_time_base()
-        # trunc before passing time to native decoder
-        |> Ratio.trunc()
-        |> Common.to_membrane_time_base()
-        # trunc after rebasing time to membrane time base
-        |> Ratio.trunc()
+        |> Common.to_h264_time_base_truncated()
+        |> Common.to_membrane_time_base_truncated()
 
       assert_sink_buffer(pid, :sink, %Membrane.Buffer{pts: pts})
       assert expected_pts == pts

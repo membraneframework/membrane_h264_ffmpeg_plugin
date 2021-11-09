@@ -126,8 +126,8 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
       // "Note 2: the JM reference encoder increments POC by 2 for every complete frame." 
       // from https://www.vcodex.com/h264avc-picture-management/ 
       int output_picture_number = state->parser_ctx->output_picture_number / 2;
-      // Retrun error if first encountered frame has output_picture_number different from 0,
-      // first frame should be I frame with both PTS and DTS equal to 0
+      // Retrun error if the first encountered frame has an output_picture_number different from 0,
+      // the first frame should be I frame with both PTS and DTS equal to 0.
       if (state->last_frame_number == -1 && output_picture_number != 0) {
         res_term = parse_result_error(env, "first frame with frame number different form 0");
         goto exit_parse_frames;

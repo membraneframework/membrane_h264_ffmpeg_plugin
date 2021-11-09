@@ -102,7 +102,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     with {:ok, dts_list, frames} <-
            Native.encode(
              buffer.payload,
-             Common.to_h264_time_base(pts) |> Ratio.trunc(),
+             Common.to_h264_time_base_truncated(pts),
              use_shm?,
              encoder_ref
            ) do
@@ -173,7 +173,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   defp wrap_frames(dts_list, frames) do
     Enum.zip(dts_list, frames)
     |> Enum.map(fn {dts, frame} ->
-      %Buffer{dts: Common.to_membrane_time_base(dts) |> Ratio.trunc(), payload: frame}
+      %Buffer{dts: Common.to_membrane_time_base_truncated(dts), payload: frame}
     end)
     |> then(&[buffer: {:output, &1}])
   end

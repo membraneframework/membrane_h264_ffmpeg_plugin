@@ -288,7 +288,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
               pts: pts,
               dts: dts,
               payload: :binary.part(au, nalu.prefixed_poslen),
-              metadata: Map.merge(metadata, nalu.metadata)
+              metadata: Map.merge(metadata.buffer_metadata, nalu.metadata)
             }
           end)
       end
