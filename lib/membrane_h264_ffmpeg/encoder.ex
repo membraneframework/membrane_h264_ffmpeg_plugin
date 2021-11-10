@@ -66,6 +66,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 description: """
                 Defines the features that will have to be supported by decoder
                 to decode video encoded with this element.
+                It sets an upper limit of compression and can ovverride other options
+                (e.g setting max_b_frames to 2 and profile to baseline, no b_frames will be present)
                 """,
                 type: :atom,
                 spec: H264.profile_t() | nil,
@@ -88,20 +90,14 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def handle_init(opts) do
     state =
       opts
-      |> max_b_frames_to_int_if_needed()
+      |> max_b_frames_to_native_format()
       |> Map.put(:encoder_ref, nil)
 
     {:ok, state}
   end
 
-  defp max_b_frames_to_int_if_needed(%{max_b_frames: nil} = opts) do
-    # translate `nil` value to C magic value
-    %{opts | max_b_frames: -1}
-  end
-
-  defp max_b_frames_to_int_if_needed(opts) do
-    opts
-  end
+  defp max_b_frames_to_native_format(%{max_b_frames: nil} = opts), do: %{opts | max_b_frames: -1}
+  defp max_b_frames_to_native_format(opts), do: opts
 
   @impl true
   def handle_demand(:output, _size, :buffers, _ctx, %{encoder_ref: nil} = state) do
