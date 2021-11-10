@@ -64,10 +64,10 @@ defmodule Membrane.H264.FFmpeg.Encoder do
               ],
               profile: [
                 description: """
-                Defines the features that will have to be supported by decoder
-                to decode video encoded with this element.
-                It sets an upper limit of compression and can ovverride other options
-                (e.g setting max_b_frames to 2 and profile to baseline, no b_frames will be present)
+                Sets a limit on the features that the encoder will use to the ones supported in a provided H264 profile.
+                Said features will have to be supported by the decoder in order to decode the resulting video.
+                It may override other, more specific options affecting compression (e.g setting `max_b_frames` to 2
+                while profile is set to `:baseline` will have no effect and no B-frames will be present).
                 """,
                 type: :atom,
                 spec: H264.profile_t() | nil,
