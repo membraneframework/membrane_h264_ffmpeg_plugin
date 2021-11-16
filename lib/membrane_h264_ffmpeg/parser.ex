@@ -14,6 +14,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   and `attach_nalus?` options for details.
   """
   use Membrane.Filter
+  use Bunch
   alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
   alias Membrane.Caps.Video.H264
@@ -91,8 +92,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
       skip_until_keyframe?: opts.skip_until_keyframe?,
-      metadata: nil,
-      last_frame_number: 0
+      metadata: nil
     }
 
     {:ok, state}
@@ -131,10 +131,20 @@ defmodule Membrane.H264.FFmpeg.Parser do
         state.first_frame_prefix <> buffer.payload
       end
 
-    with {:ok, sizes, output_picture_numbers, resolution_changes} <-
+    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} <-
            Native.parse(payload, state.parser_ref) do
       metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
-      {bufs, state} = parse_access_units(payload, sizes, metadata, output_picture_numbers, state)
+
+      {bufs, state} =
+        parse_access_units(
+          payload,
+          sizes,
+          metadata,
+          decoding_order_numbers,
+          presentation_order_numbers,
+          state
+        )
+
       actions = parse_resolution_changes(state, bufs, resolution_changes)
       {{:ok, actions ++ [redemand: :output]}, state}
     else
@@ -171,9 +181,17 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, sizes, output_picture_numbers} <- Native.flush(state.parser_ref) do
+    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers} <-
+           Native.flush(state.parser_ref) do
       {bufs, state} =
-        parse_access_units(<<>>, sizes, state.metadata, output_picture_numbers, state)
+        parse_access_units(
+          <<>>,
+          sizes,
+          state.metadata,
+          decoding_order_numbers,
+          presentation_order_numbers,
+          state
+        )
 
       if state.partial_frame != <<>> do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
@@ -193,28 +211,52 @@ defmodule Membrane.H264.FFmpeg.Parser do
          input,
          au_sizes,
          metadata,
-         output_picture_numbers,
+         decoding_order_numbers,
+         presentation_order_numbers,
          %{partial_frame: <<>>} = state
        ) do
     state = %{state | metadata: metadata}
 
     {buffers, input, state} =
-      do_parse_access_units(input, au_sizes, metadata, output_picture_numbers, state, [])
+      do_parse_access_units(
+        input,
+        au_sizes,
+        metadata,
+        decoding_order_numbers,
+        presentation_order_numbers,
+        state,
+        []
+      )
 
     {buffers, %{state | partial_frame: input}}
   end
 
-  defp parse_access_units(input, [], _metadata, _output_picture_numbers, state) do
+  defp parse_access_units(
+         input,
+         [],
+         _metadata,
+         _decoding_order_numbers,
+         _presentation_order_numbers,
+         state
+       ) do
     {[], %{state | partial_frame: state.partial_frame <> input}}
   end
 
-  defp parse_access_units(input, [au_size | au_sizes], metadata, output_picture_numbers, state) do
+  defp parse_access_units(
+         input,
+         [au_size | au_sizes],
+         metadata,
+         [decoding_order_number | decoding_order_numbers],
+         [presentation_order_number | presentation_order_numbers],
+         state
+       ) do
     {first_au_buffers, input, state} =
       do_parse_access_units(
         state.partial_frame <> input,
         [au_size],
         state.metadata,
-        output_picture_numbers,
+        [decoding_order_number],
+        [presentation_order_number],
         state,
         []
       )
@@ -222,12 +264,28 @@ defmodule Membrane.H264.FFmpeg.Parser do
     state = %{state | metadata: metadata}
 
     {buffers, input, state} =
-      do_parse_access_units(input, au_sizes, state.metadata, output_picture_numbers, state, [])
+      do_parse_access_units(
+        input,
+        au_sizes,
+        state.metadata,
+        decoding_order_numbers,
+        presentation_order_numbers,
+        state,
+        []
+      )
 
     {first_au_buffers ++ buffers, %{state | partial_frame: input}}
   end
 
-  defp do_parse_access_units(input, [], _metadata, _output_frame_numbers, state, acc) do
+  defp do_parse_access_units(
+         input,
+         [],
+         _metadata,
+         _decoding_order_numbers,
+         _presentation_order_numbers,
+         state,
+         acc
+       ) do
     {Enum.reverse(acc), input, state}
   end
 
@@ -235,29 +293,27 @@ defmodule Membrane.H264.FFmpeg.Parser do
          input,
          [au_size | au_sizes],
          metadata,
-         output_frame_numbers,
+         [decoding_order_number | decoding_order_numbers],
+         [presentation_order_number | presentation_order_numbers],
          state,
          acc
        ) do
     <<au::binary-size(au_size), rest::binary>> = input
 
-    [output_frame_number | output_frame_numbers] = output_frame_numbers
-
-    {{pts, dts}, state} =
-      if state.framerate do
-        {frames, seconds} = state.framerate
-
+    {pts, dts} =
+      withl framerate: {frames, seconds} <- state.framerate,
+            positive_order_number: true <- presentation_order_number >= 0 do
         pts =
           div(
-            output_frame_number * seconds * Membrane.Time.second(),
+            presentation_order_number * seconds * Membrane.Time.second(),
             frames
           )
 
-        dts = div(state.last_frame_number * seconds * Membrane.Time.second(), frames)
-
-        {{pts, dts}, %{state | last_frame_number: state.last_frame_number + 1}}
+        dts = div(decoding_order_number * seconds * Membrane.Time.second(), frames)
+        {pts, dts}
       else
-        {{metadata.pts, metadata.dts}, state}
+        positive_order_number: false -> {nil, nil}
+        framerate: _match_error -> {metadata.pts, metadata.dts}
       end
 
     {nalus, au_metadata} = NALu.parse(au)
@@ -293,7 +349,15 @@ defmodule Membrane.H264.FFmpeg.Parser do
           end)
       end
 
-    do_parse_access_units(rest, au_sizes, metadata, output_frame_numbers, state, [buffers | acc])
+    do_parse_access_units(
+      rest,
+      au_sizes,
+      metadata,
+      decoding_order_numbers,
+      presentation_order_numbers,
+      state,
+      [buffers | acc]
+    )
   end
 
   defp mk_caps(state, width, height) do

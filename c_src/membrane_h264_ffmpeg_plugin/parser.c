@@ -17,9 +17,8 @@ UNIFEX_TERM create(UnifexEnv *env) {
   State *state = unifex_alloc_state(env);
   state->codec_ctx = NULL;
   state->parser_ctx = NULL;
-  // initially last_frame_number is set to -1 because first frame (with frame number 0) was not received yet.
   state->last_frame_number = -1; 
-  state->frame_number_offset = 0;
+  state->poc_offset = 0;
 
   AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
   if (!codec) {
@@ -56,11 +55,11 @@ static int resolution_changed(resolution last_res, State *state) {
          (state->parser_ctx->height != last_res.height);
 }
  
-void update_last_frame_number(int frame_number, State *state) {
-  if(frame_number == 0) {
-    state->frame_number_offset = state->last_frame_number + 1;
+void update_last_frame_number(int poc, State *state) {
+  state->last_frame_number += 1;
+  if(poc == 0) {
+    state->poc_offset += state->last_frame_number;
   }
-  state->last_frame_number = frame_number + state->frame_number_offset;
 }
 
 UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
@@ -68,7 +67,8 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   int ret;
   size_t max_frames = 32, frames_cnt = 0, max_changes = 5, changes_cnt = 0;
   unsigned *out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
-  int* output_picture_numbers = unifex_alloc(max_frames * sizeof(int));
+  int* presentation_order_numbers = unifex_alloc(max_frames * sizeof(int));
+  int* decoding_order_numbers = unifex_alloc(max_frames * sizeof(int));
   resolution *changes = unifex_alloc(max_changes * sizeof(resolution));
 
   AVPacket *pkt = NULL;
@@ -119,30 +119,39 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
         max_frames *= 2;
         out_frame_sizes =
             unifex_realloc(out_frame_sizes, max_frames * sizeof(unsigned));
-        output_picture_numbers = 
-            unifex_realloc(output_picture_numbers, max_frames * sizeof(int));
+        decoding_order_numbers = 
+            unifex_realloc(decoding_order_numbers, max_frames * sizeof(int));
+        presentation_order_numbers = 
+            unifex_realloc(presentation_order_numbers, max_frames * sizeof(int));
       }
       out_frame_sizes[frames_cnt] = pkt->size;
       // "Note 2: the JM reference encoder increments POC by 2 for every complete frame." 
       // from https://www.vcodex.com/h264avc-picture-management/ 
-      int output_picture_number = state->parser_ctx->output_picture_number / 2;
-      // Retrun error if the first encountered frame has an output_picture_number different from 0,
-      // the first frame should be I frame with both PTS and DTS equal to 0.
-      if (state->last_frame_number == -1 && output_picture_number != 0) {
-        res_term = parse_result_error(env, "first frame with frame number different form 0");
-        goto exit_parse_frames;
+      int picture_order_number = state->parser_ctx->output_picture_number / 2;
+      // If frame with POC=0 was not encounter yet presentation order number cannot be calculated reliably. 
+      if (state->last_frame_number != -1 || picture_order_number == 0) {
+        update_last_frame_number(picture_order_number, state);
+        presentation_order_numbers[frames_cnt] = picture_order_number + state->poc_offset;
+        decoding_order_numbers[frames_cnt] = state->last_frame_number;
+      } else {
+        presentation_order_numbers[frames_cnt] = -1;
+        decoding_order_numbers[frames_cnt] = -1;
       }
-      update_last_frame_number(output_picture_number, state);
-      output_picture_numbers[frames_cnt] = state->last_frame_number;
+
       frames_cnt++;
     }
   }
-
+  
   res_term =
-      parse_result_ok(env, out_frame_sizes, frames_cnt, output_picture_numbers, frames_cnt, changes, changes_cnt);
+      parse_result_ok(env, 
+                      out_frame_sizes, frames_cnt, 
+                      decoding_order_numbers, frames_cnt, 
+                      presentation_order_numbers, frames_cnt, 
+                      changes, changes_cnt);
 exit_parse_frames:
   unifex_free(out_frame_sizes);
-  unifex_free(output_picture_numbers);
+  unifex_free(decoding_order_numbers);
+  unifex_free(presentation_order_numbers);
   unifex_free(changes);
   av_packet_free(&pkt);
   unifex_payload_realloc(payload, old_size);
@@ -203,11 +212,12 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   }
 
   if (out_frame_size == 0) {
-    return flush_result_ok(env, NULL, 0, NULL, 0);
+    return flush_result_ok(env, NULL, 0, NULL, 0, NULL, 0);
   }
 
   // "Note 2: the JM reference encoder increments POC by 2 for every complete frame." 
   // from https://www.vcodex.com/h264avc-picture-management/ 
-  int output_picture_number = state->parser_ctx->output_picture_number / 2;
-  return flush_result_ok(env, &out_frame_size, 1, &output_picture_number, 1);
+  int presentation_order_number = state->parser_ctx->output_picture_number / 2;
+  int decoding_order_number = state->last_frame_number + 1;
+  return flush_result_ok(env, &out_frame_size, 1,  &decoding_order_number, 1, &presentation_order_number, 1);
 }
