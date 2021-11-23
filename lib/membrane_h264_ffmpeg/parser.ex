@@ -17,7 +17,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   use Bunch
   alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.H264
+  alias Membrane.H264
   require Membrane.Logger
 
   def_input_pad :input,
@@ -25,7 +25,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     caps: :any
 
   def_output_pad :output,
-    caps: {H264, stream_format: :byte_stream}
+    caps: [{H264, stream_format: :byte_stream}, RemoteStream.H264]
 
   def_options framerate: [
                 type: :framerate,
@@ -87,7 +87,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     state = %{
       parser_ref: nil,
       partial_frame: <<>>,
-      first_frame_prefix: opts.sps <> opts.pps,
+      frame_prefix: opts.sps <> opts.pps,
       framerate: opts.framerate,
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
@@ -124,11 +124,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_process(:input, buffer, ctx, state) do
-    payload =
-      if ctx.pads.output.start_of_stream? do
-        buffer.payload
+    {payload, state} =
+      if is_nil(state.frame_prefix) or carries_parameters_in_band?(buffer.payload) do
+        {buffer.payload, state}
       else
-        state.first_frame_prefix <> buffer.payload
+        {state.frame_prefix <> buffer.payload, %{state | frame_prefix: nil}}
       end
 
     with {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} <-
@@ -171,6 +171,14 @@ defmodule Membrane.H264.FFmpeg.Parser do
       acc ++ [buffer: {:output, old_bufs}, caps: {:output, next_caps}],
       meta.index
     )
+  end
+
+  @impl true
+  def handle_caps(:input, %Membrane.RemoteStream.H264{} = caps, _ctx, state) do
+    {:ok, %{sps: [sps], pps: [pps]}} =
+      Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(caps.decoder_configuration_record)
+
+    {:ok, %{state | frame_prefix: <<0, 0, 1>> <> sps <> <<0, 0, 1>> <> pps}}
   end
 
   @impl true
@@ -372,5 +380,17 @@ defmodule Membrane.H264.FFmpeg.Parser do
       stream_format: :byte_stream,
       profile: profile
     }
+  end
+
+  defp carries_parameters_in_band?(<<payload::binary-size(40), _rest::binary>>) do
+    types =
+      NALu.parse(payload)
+      |> elem(0)
+      |> Enum.map(& &1.metadata.h264.type)
+      |> Enum.uniq()
+
+    required = [:pps, :sps]
+
+    Enum.all?(required, &Enum.member?(types, &1))
   end
 end

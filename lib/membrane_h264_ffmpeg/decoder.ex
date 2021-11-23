@@ -9,7 +9,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.{H264, Raw}
+  alias Membrane.Caps.Video.Raw
+  alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
 
   require Membrane.Logger

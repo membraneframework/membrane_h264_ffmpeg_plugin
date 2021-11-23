@@ -15,7 +15,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   use Bunch.Typespec
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.{H264, Raw}
+  alias Membrane.Caps.Video.Raw
+  alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
 
   def_input_pad :input,

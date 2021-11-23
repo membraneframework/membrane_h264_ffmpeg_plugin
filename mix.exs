@@ -58,7 +58,8 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
     [
       {:bunch, "~> 1.3.0"},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false},
-      {:membrane_caps_video_h264, "~> 0.2.0"},
+      {:membrane_caps_video_h264,
+       github: "membraneframework/membrane-caps-video-h264", branch: "remote-caps"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
       {:membrane_common_c, "~> 0.10.0"},
       {:membrane_core, "~> 0.8.0"},
