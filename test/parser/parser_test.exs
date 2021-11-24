@@ -7,7 +7,7 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
   @no_params_stream File.read!("test/fixtures/input-10-no-pps-sps.h264")
   @stream_with_params File.read!("test/fixtures/input-10-720p.h264")
 
-  test "Reacts correctly to RemoteStream.H264 caps" do
+  test "Reacts correctly to H264.RemoteStream caps" do
     {:ok, state} =
       Parser.handle_init(%Parser{
         framerate: {30, 1},
@@ -16,7 +16,7 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
 
     {:ok, state} = Parser.handle_stopped_to_prepared(nil, state)
 
-    input_caps = %Membrane.RemoteStream.H264{
+    input_caps = %Membrane.H264.RemoteStream{
       decoder_configuration_record:
         <<1, 2, 131, 242, 255, 225, 0, 8, 103, 66, 0, 13, 233, 2, 131, 242, 1, 0, 5, 104, 206, 1,
           15, 32>>,

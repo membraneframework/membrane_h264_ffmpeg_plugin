@@ -25,7 +25,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     caps: :any
 
   def_output_pad :output,
-    caps: [{H264, stream_format: :byte_stream}, RemoteStream.H264]
+    caps: [{H264, stream_format: :byte_stream}, H264.RemoteStream]
 
   def_options framerate: [
                 type: :framerate,
@@ -174,7 +174,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_caps(:input, %Membrane.RemoteStream.H264{} = caps, _ctx, state) do
+  def handle_caps(:input, %Membrane.H264.RemoteStream{} = caps, _ctx, state) do
     {:ok, %{sps: sps, pps: pps}} =
       Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(caps.decoder_configuration_record)
 
