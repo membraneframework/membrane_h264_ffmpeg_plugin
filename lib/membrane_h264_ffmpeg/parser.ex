@@ -175,10 +175,15 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_caps(:input, %Membrane.RemoteStream.H264{} = caps, _ctx, state) do
-    {:ok, %{sps: [sps], pps: [pps]}} =
+    {:ok, %{sps: sps, pps: pps}} =
       Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(caps.decoder_configuration_record)
 
-    {:ok, %{state | frame_prefix: <<0, 0, 1>> <> sps <> <<0, 0, 1>> <> pps}}
+    frame_prefix =
+      Enum.concat(sps, pps)
+      |> Enum.join(<<0, 0, 1>>)
+      |> then(&(<<0, 0, 1>> <> &1))
+
+    {:ok, %{state | frame_prefix: frame_prefix}}
   end
 
   @impl true
