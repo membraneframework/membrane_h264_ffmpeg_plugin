@@ -4,6 +4,7 @@ defmodule DecoderTest do
   alias Membrane.H264
   alias Membrane.Testing
   alias Membrane.Testing.Pipeline
+  alias Membrane.H264.FFmpeg.Common
 
   @framerate 30
 
@@ -65,8 +66,15 @@ defmodule DecoderTest do
 
     0..(frame_count - 1)
     |> Enum.each(fn i ->
-      assert_sink_buffer(pid, :sink, %Membrane.Buffer{metadata: metadata})
-      assert Ratio.mult(i, frame_duration) == metadata.pts
+      expected_pts =
+        Ratio.mult(i, frame_duration)
+        # trunc in parser
+        |> Ratio.trunc()
+        |> Common.to_h264_time_base_truncated()
+        |> Common.to_membrane_time_base_truncated()
+
+      assert_sink_buffer(pid, :sink, %Membrane.Buffer{pts: pts})
+      assert expected_pts == pts
     end)
 
     Testing.Pipeline.stop_and_terminate(pid, blocking?: true)
@@ -83,6 +91,10 @@ defmodule DecoderTest do
 
     test "decode 20 360p frames with 422 subsampling" do
       perform_decoding_test("20-360p-I422", 1000)
+    end
+
+    test "decode 10 720p frames with B frames in main profile" do
+      perform_decoding_test("10-720p-main", 1000)
     end
 
     test "append correct timestamps to 10 720p frames" do

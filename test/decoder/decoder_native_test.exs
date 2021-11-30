@@ -10,7 +10,7 @@ defmodule Decoder.NativeTest do
     assert {:ok, file} = File.read(in_path)
     assert {:ok, decoder_ref} = Dec.create()
     assert <<frame::bytes-size(7469), _::binary>> = file
-    assert {:ok, _pts_list, _frames} = Dec.decode(frame, 0, false, decoder_ref)
+    assert {:ok, _pts_list, _frames} = Dec.decode(frame, 0, 0, false, decoder_ref)
     assert {:ok, _pts_list, [frame]} = Dec.flush(false, decoder_ref)
     assert Payload.size(frame) == 115_200
     assert {:ok, ref_file} = File.read(ref_path)

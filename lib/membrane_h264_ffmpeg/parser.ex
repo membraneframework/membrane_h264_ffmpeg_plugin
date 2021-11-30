@@ -14,6 +14,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   and `attach_nalus?` options for details.
   """
   use Membrane.Filter
+  use Bunch
   alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
   alias Membrane.Caps.Video.H264
@@ -28,8 +29,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   def_options framerate: [
                 type: :framerate,
-                spec: H264.framerate_t(),
-                default: {0, 1},
+                spec: H264.framerate_t() | nil,
+                default: nil,
                 description: """
                 Framerate of video stream, see `t:Membrane.Caps.Video.H264.framerate_t/0`
                 """
@@ -91,8 +92,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
       skip_until_keyframe?: opts.skip_until_keyframe?,
-      metadata: nil,
-      timestamp: 0
+      metadata: nil
     }
 
     {:ok, state}
@@ -123,16 +123,27 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_process(:input, %Buffer{payload: payload, metadata: metadata}, ctx, state) do
+  def handle_process(:input, buffer, ctx, state) do
     payload =
       if ctx.pads.output.start_of_stream? do
-        payload
+        buffer.payload
       else
-        state.first_frame_prefix <> payload
+        state.first_frame_prefix <> buffer.payload
       end
 
-    with {:ok, sizes, resolution_changes} <- Native.parse(payload, state.parser_ref) do
-      {bufs, state} = parse_access_units(payload, sizes, metadata, state)
+    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} <-
+           Native.parse(payload, state.parser_ref) do
+      metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
+
+      {bufs, state} =
+        parse_access_units(
+          payload,
+          sizes,
+          metadata,
+          decoding_order_numbers,
+          presentation_order_numbers,
+          state
+        )
 
       actions = parse_resolution_changes(state, bufs, resolution_changes)
       {{:ok, actions ++ [redemand: :output]}, state}
@@ -170,8 +181,17 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, sizes} <- Native.flush(state.parser_ref) do
-      {bufs, state} = parse_access_units(<<>>, sizes, state.metadata, state)
+    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers} <-
+           Native.flush(state.parser_ref) do
+      {bufs, state} =
+        parse_access_units(
+          <<>>,
+          sizes,
+          state.metadata,
+          decoding_order_numbers,
+          presentation_order_numbers,
+          state
+        )
 
       if state.partial_frame != <<>> do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
@@ -187,37 +207,117 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {:ok, %{state | parser_ref: nil}}
   end
 
-  defp parse_access_units(input, au_sizes, metadata, %{partial_frame: <<>>} = state) do
-    state = update_metadata(metadata, state)
-    {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
+  defp parse_access_units(
+         input,
+         au_sizes,
+         metadata,
+         decoding_order_numbers,
+         presentation_order_numbers,
+         %{partial_frame: <<>>} = state
+       ) do
+    state = %{state | metadata: metadata}
+
+    {buffers, input, state} =
+      do_parse_access_units(
+        input,
+        au_sizes,
+        metadata,
+        decoding_order_numbers,
+        presentation_order_numbers,
+        state,
+        []
+      )
+
     {buffers, %{state | partial_frame: input}}
   end
 
-  defp parse_access_units(input, [], _metadata, state) do
+  defp parse_access_units(
+         input,
+         [],
+         _metadata,
+         _decoding_order_numbers,
+         _presentation_order_numbers,
+         state
+       ) do
     {[], %{state | partial_frame: state.partial_frame <> input}}
   end
 
-  defp parse_access_units(input, [au_size | au_sizes], metadata, state) do
+  defp parse_access_units(
+         input,
+         [au_size | au_sizes],
+         metadata,
+         [decoding_order_number | decoding_order_numbers],
+         [presentation_order_number | presentation_order_numbers],
+         state
+       ) do
     {first_au_buffers, input, state} =
-      do_parse_access_units(state.partial_frame <> input, [au_size], state.metadata, state, [])
+      do_parse_access_units(
+        state.partial_frame <> input,
+        [au_size],
+        state.metadata,
+        [decoding_order_number],
+        [presentation_order_number],
+        state,
+        []
+      )
 
-    state = update_metadata(metadata, state)
-    {buffers, input, state} = do_parse_access_units(input, au_sizes, metadata, state, [])
+    state = %{state | metadata: metadata}
+
+    {buffers, input, state} =
+      do_parse_access_units(
+        input,
+        au_sizes,
+        state.metadata,
+        decoding_order_numbers,
+        presentation_order_numbers,
+        state,
+        []
+      )
+
     {first_au_buffers ++ buffers, %{state | partial_frame: input}}
   end
 
-  defp do_parse_access_units(input, [], _metadata, state, acc) do
+  defp do_parse_access_units(
+         input,
+         [],
+         _metadata,
+         _decoding_order_numbers,
+         _presentation_order_numbers,
+         state,
+         acc
+       ) do
     {Enum.reverse(acc), input, state}
   end
 
-  defp do_parse_access_units(input, [au_size | au_sizes], metadata, state, acc) do
+  defp do_parse_access_units(
+         input,
+         [au_size | au_sizes],
+         metadata,
+         [decoding_order_number | decoding_order_numbers],
+         [presentation_order_number | presentation_order_numbers],
+         state,
+         acc
+       ) do
     <<au::binary-size(au_size), rest::binary>> = input
 
-    # setting both :timestamp and :dts in order to maintain backward compatibility
-    metadata = Map.put(metadata, :timestamp, state.timestamp) |> Map.put(:dts, state.timestamp)
+    {pts, dts} =
+      withl framerate: {frames, seconds} <- state.framerate,
+            positive_order_number: true <- presentation_order_number >= 0 do
+        pts =
+          div(
+            presentation_order_number * seconds * Membrane.Time.second(),
+            frames
+          )
+
+        dts = div(decoding_order_number * seconds * Membrane.Time.second(), frames)
+        {pts, dts}
+      else
+        positive_order_number: false -> {nil, nil}
+        framerate: nil -> {metadata.pts, metadata.dts}
+      end
 
     {nalus, au_metadata} = NALu.parse(au)
-    au_metadata = Map.merge(metadata, au_metadata)
+    au_metadata = Map.merge(metadata.buffer_metadata, au_metadata)
     state = Map.update!(state, :skip_until_keyframe?, &(&1 and not au_metadata.h264.key_frame?))
 
     buffers =
@@ -226,40 +326,38 @@ defmodule Membrane.H264.FFmpeg.Parser do
           []
 
         %{alignment: :au, attach_nalus?: true} ->
-          [%Buffer{payload: au, metadata: put_in(au_metadata, [:h264, :nalus], nalus)}]
+          [
+            %Buffer{
+              pts: pts,
+              dts: dts,
+              payload: au,
+              metadata: put_in(au_metadata, [:h264, :nalus], nalus)
+            }
+          ]
 
         %{alignment: :au, attach_nalus?: false} ->
-          [%Buffer{payload: au, metadata: au_metadata}]
+          [%Buffer{pts: pts, dts: dts, payload: au, metadata: au_metadata}]
 
         %{alignment: :nal} ->
           Enum.map(nalus, fn nalu ->
             %Buffer{
+              pts: pts,
+              dts: dts,
               payload: :binary.part(au, nalu.prefixed_poslen),
-              metadata: Map.merge(metadata, nalu.metadata)
+              metadata: Map.merge(metadata.buffer_metadata, nalu.metadata)
             }
           end)
       end
 
-    do_parse_access_units(rest, au_sizes, metadata, bump_timestamp(state), [buffers | acc])
-  end
-
-  defp update_metadata(%{timestamp: timestamp} = metadata, state) do
-    %{state | timestamp: timestamp, metadata: metadata}
-  end
-
-  defp update_metadata(metadata, state) do
-    %{state | metadata: metadata}
-  end
-
-  defp bump_timestamp(%{framerate: {0, _}} = state) do
-    state
-  end
-
-  defp bump_timestamp(state) do
-    use Ratio
-    %{timestamp: timestamp, framerate: {num, denom}} = state
-    timestamp = timestamp + Ratio.new(denom * Membrane.Time.second(), num)
-    %{state | timestamp: timestamp}
+    do_parse_access_units(
+      rest,
+      au_sizes,
+      metadata,
+      decoding_order_numbers,
+      presentation_order_numbers,
+      state,
+      [buffers | acc]
+    )
   end
 
   defp mk_caps(state, width, height) do
@@ -268,7 +366,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     %H264{
       width: width,
       height: height,
-      framerate: state.framerate,
+      framerate: state.framerate || {0, 1},
       alignment: state.alignment,
       nalu_in_metadata?: state.attach_nalus?,
       stream_format: :byte_stream,
