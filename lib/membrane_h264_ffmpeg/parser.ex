@@ -20,12 +20,14 @@ defmodule Membrane.H264.FFmpeg.Parser do
   alias Membrane.H264
   require Membrane.Logger
 
+  @required_parameter_nalu [:pps, :sps]
+
   def_input_pad :input,
     demand_unit: :buffers,
     caps: :any
 
   def_output_pad :output,
-    caps: [{H264, stream_format: :byte_stream}, H264.RemoteStream]
+    caps: {H264, stream_format: :byte_stream}
 
   def_options framerate: [
                 type: :framerate,
@@ -179,9 +181,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
       Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(caps.decoder_configuration_record)
 
     frame_prefix =
-      Enum.concat(sps, pps)
+      Enum.concat([[state.frame_prefix || <<>>], sps, pps])
       |> Enum.join(<<0, 0, 1>>)
-      |> then(&(<<0, 0, 1>> <> &1))
 
     {:ok, %{state | frame_prefix: frame_prefix}}
   end
@@ -392,10 +393,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       NALu.parse(payload)
       |> elem(0)
       |> Enum.map(& &1.metadata.h264.type)
-      |> Enum.uniq()
 
-    required = [:pps, :sps]
-
-    Enum.all?(required, &Enum.member?(types, &1))
+    Enum.all?(@required_parameter_nalu, &Enum.member?(types, &1))
   end
 end
