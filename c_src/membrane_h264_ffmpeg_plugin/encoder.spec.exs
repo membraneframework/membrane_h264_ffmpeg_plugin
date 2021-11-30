@@ -8,6 +8,7 @@ spec create(
        pix_fmt :: atom,
        preset :: atom,
        profile :: atom,
+       max_b_frames :: int,
        framerate_num :: int,
        framerate_denom :: int,
        crf :: int

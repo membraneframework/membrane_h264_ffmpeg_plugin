@@ -64,25 +64,40 @@ defmodule Membrane.H264.FFmpeg.Encoder do
               ],
               profile: [
                 description: """
-                Defines the features that will have to be supported by decoder
-                to decode video encoded with this element.
+                Sets a limit on the features that the encoder will use to the ones supported in a provided H264 profile.
+                Said features will have to be supported by the decoder in order to decode the resulting video.
+                It may override other, more specific options affecting compression (e.g setting `max_b_frames` to 2
+                while profile is set to `:baseline` will have no effect and no B-frames will be present).
                 """,
                 type: :atom,
-                spec: H264.profile_t(),
-                default: :high
+                spec: H264.profile_t() | nil,
+                default: nil
               ],
               use_shm?: [
                 type: :boolean,
                 desciption:
                   "If true, native encoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
                 default: false
+              ],
+              max_b_frames: [
+                type: :int,
+                description:
+                  "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
+                default: nil
               ]
 
   @impl true
   def handle_init(opts) do
-    state = Map.merge(opts, %{encoder_ref: nil})
+    state =
+      opts
+      |> max_b_frames_to_native_format()
+      |> Map.put(:encoder_ref, nil)
+
     {:ok, state}
   end
+
+  defp max_b_frames_to_native_format(%{max_b_frames: nil} = opts), do: %{opts | max_b_frames: -1}
+  defp max_b_frames_to_native_format(opts), do: opts
 
   @impl true
   def handle_demand(:output, _size, :buffers, _ctx, %{encoder_ref: nil} = state) do
@@ -130,6 +145,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              caps.format,
              state.preset,
              state.profile,
+             state.max_b_frames,
              framerate_num,
              framerate_denom,
              state.crf

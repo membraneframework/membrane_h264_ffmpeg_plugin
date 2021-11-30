@@ -313,7 +313,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         {pts, dts}
       else
         positive_order_number: false -> {nil, nil}
-        framerate: _match_error -> {metadata.pts, metadata.dts}
+        framerate: nil -> {metadata.pts, metadata.dts}
       end
 
     {nalus, au_metadata} = NALu.parse(au)
