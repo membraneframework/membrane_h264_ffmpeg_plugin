@@ -48,10 +48,9 @@ defmodule Membrane.H264.FFmpeg.Parser.DecoderConfiguration do
 
   defp parse_pps(<<num_of_pps::8, rest::bitstring>>), do: do_parse_array(num_of_pps, rest)
 
-  defp do_parse_array(0, rest), do: {[], rest}
+  defp do_parse_array(amount, rest, acc \\ [])
+  defp do_parse_array(0, rest, acc), do: {Enum.reverse(acc), rest}
 
-  defp do_parse_array(remaining, <<size::16, data::binary-size(size), rest::bitstring>>) do
-    {acc, rest} = do_parse_array(remaining - 1, rest)
-    {[data | acc], rest}
-  end
+  defp do_parse_array(remaining, <<size::16, data::binary-size(size), rest::bitstring>>, acc),
+    do: do_parse_array(remaining - 1, rest, [data | acc])
 end

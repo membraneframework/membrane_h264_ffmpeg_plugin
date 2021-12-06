@@ -9,7 +9,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       app: :membrane_h264_ffmpeg_plugin,
       compilers: [:unifex, :bundlex] ++ Mix.compilers(),
       version: @version,
-      elixir: "~> 1.7",
+      elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       description: "Membrane H264 parser, decoder and encoder based on FFmpeg and x264",
@@ -58,8 +58,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
     [
       {:bunch, "~> 1.3.0"},
       {:ex_doc, "~> 0.24", only: :dev, runtime: false},
-      {:membrane_h264_format,
-       github: "membraneframework/membrane-caps-video-h264", branch: "remote-caps"},
+      {:membrane_h264_format, "~> 0.3.0"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
       {:membrane_common_c, "~> 0.10.0"},
       {:membrane_core, "~> 0.8.0"},
