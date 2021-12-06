@@ -15,7 +15,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   use Bunch.Typespec
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.{H264, Raw}
+  alias Membrane.Caps.Video.Raw
+  alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
 
   def_input_pad :input,
@@ -114,20 +115,20 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     %{encoder_ref: encoder_ref, use_shm?: use_shm?} = state
     pts = buffer.pts || 0
 
-    with {:ok, dts_list, frames} <-
-           Native.encode(
-             buffer.payload,
-             Common.to_h264_time_base_truncated(pts),
-             use_shm?,
-             encoder_ref
-           ) do
-      bufs = wrap_frames(dts_list, frames)
+    case Native.encode(
+           buffer.payload,
+           Common.to_h264_time_base_truncated(pts),
+           use_shm?,
+           encoder_ref
+         ) do
+      {:ok, dts_list, frames} ->
+        bufs = wrap_frames(dts_list, frames)
 
-      # redemand is needed until the internal buffer of encoder is filled (no buffers will be
-      # generated before that) but it is a noop if the demand has been fulfilled
-      actions = bufs ++ [redemand: :output]
-      {{:ok, actions}, state}
-    else
+        # redemand is needed until the internal buffer of encoder is filled (no buffers will be
+        # generated before that) but it is a noop if the demand has been fulfilled
+        actions = bufs ++ [redemand: :output]
+        {{:ok, actions}, state}
+
       {:error, reason} ->
         {{:error, reason}, state}
     end
@@ -160,11 +161,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, buffers} <- flush_encoder_if_exists(state) do
-      actions = buffers ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
-      {{:ok, actions}, state}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case flush_encoder_if_exists(state) do
+      {:ok, buffers} ->
+        actions = buffers ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
+        {{:ok, actions}, state}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 

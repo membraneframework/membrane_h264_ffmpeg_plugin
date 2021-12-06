@@ -17,8 +17,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
   use Bunch
   alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.H264
+  alias Membrane.H264
   require Membrane.Logger
+
+  @required_parameter_nalu [:pps, :sps]
 
   def_input_pad :input,
     demand_unit: :buffers,
@@ -87,7 +89,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     state = %{
       parser_ref: nil,
       partial_frame: <<>>,
-      first_frame_prefix: opts.sps <> opts.pps,
+      frame_prefix: opts.sps <> opts.pps,
       framerate: opts.framerate,
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
@@ -100,10 +102,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    with {:ok, parser_ref} <- Native.create() do
-      {:ok, %{state | parser_ref: parser_ref}}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case Native.create() do
+      {:ok, parser_ref} ->
+        {:ok, %{state | parser_ref: parser_ref}}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
@@ -124,31 +128,32 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_process(:input, buffer, ctx, state) do
-    payload =
-      if ctx.pads.output.start_of_stream? do
-        buffer.payload
+    {payload, state} =
+      if is_nil(state.frame_prefix) or carries_parameters_in_band?(buffer.payload) do
+        {buffer.payload, state}
       else
-        state.first_frame_prefix <> buffer.payload
+        {state.frame_prefix <> buffer.payload, %{state | frame_prefix: nil}}
       end
 
-    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} <-
-           Native.parse(payload, state.parser_ref) do
-      metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
+    case Native.parse(payload, state.parser_ref) do
+      {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} ->
+        metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
 
-      {bufs, state} =
-        parse_access_units(
-          payload,
-          sizes,
-          metadata,
-          decoding_order_numbers,
-          presentation_order_numbers,
-          state
-        )
+        {bufs, state} =
+          parse_access_units(
+            payload,
+            sizes,
+            metadata,
+            decoding_order_numbers,
+            presentation_order_numbers,
+            state
+          )
 
-      actions = parse_resolution_changes(state, bufs, resolution_changes)
-      {{:ok, actions ++ [redemand: :output]}, state}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+        actions = parse_resolution_changes(state, bufs, resolution_changes)
+        {{:ok, actions ++ [redemand: :output]}, state}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
@@ -171,6 +176,18 @@ defmodule Membrane.H264.FFmpeg.Parser do
       acc ++ [buffer: {:output, old_bufs}, caps: {:output, next_caps}],
       meta.index
     )
+  end
+
+  @impl true
+  def handle_caps(:input, %Membrane.H264.RemoteStream{} = caps, _ctx, state) do
+    {:ok, %{sps: sps, pps: pps}} =
+      Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(caps.decoder_configuration_record)
+
+    frame_prefix =
+      Enum.concat([[state.frame_prefix || <<>>], sps, pps])
+      |> Enum.join(<<0, 0, 1>>)
+
+    {:ok, %{state | frame_prefix: frame_prefix}}
   end
 
   @impl true
@@ -372,5 +389,14 @@ defmodule Membrane.H264.FFmpeg.Parser do
       stream_format: :byte_stream,
       profile: profile
     }
+  end
+
+  defp carries_parameters_in_band?(<<payload::binary-size(40), _rest::binary>>) do
+    types =
+      NALu.parse(payload)
+      |> elem(0)
+      |> Enum.map(& &1.metadata.h264.type)
+
+    Enum.all?(@required_parameter_nalu, &Enum.member?(types, &1))
   end
 end

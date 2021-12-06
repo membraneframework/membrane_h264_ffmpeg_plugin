@@ -9,7 +9,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.{H264, Raw}
+  alias Membrane.Caps.Video.Raw
+  alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
 
   require Membrane.Logger
@@ -38,10 +39,12 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    with {:ok, decoder_ref} <- Native.create() do
-      {:ok, %{state | decoder_ref: decoder_ref}}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case Native.create() do
+      {:ok, decoder_ref} ->
+        {:ok, %{state | decoder_ref: decoder_ref}}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
@@ -57,23 +60,23 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     dts = if(buffer.dts, do: Common.to_h264_time_base_truncated(buffer.dts), else: @no_pts)
     pts = if(buffer.pts, do: Common.to_h264_time_base_truncated(buffer.pts), else: @no_pts)
 
-    with {:ok, pts_list_h264_base, frames} <-
-           Native.decode(
-             buffer.payload,
-             pts,
-             dts,
-             use_shm?,
-             decoder_ref
-           ),
-         bufs = wrap_frames(pts_list_h264_base, frames),
-         in_caps = ctx.pads.input.caps do
-      {caps, state} = update_caps_if_needed(state, in_caps)
+    case Native.decode(
+           buffer.payload,
+           pts,
+           dts,
+           use_shm?,
+           decoder_ref
+         ) do
+      {:ok, pts_list_h264_base, frames} ->
+        bufs = wrap_frames(pts_list_h264_base, frames)
+        in_caps = ctx.pads.input.caps
+        {caps, state} = update_caps_if_needed(state, in_caps)
 
-      # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
-      # but it is noop otherwise, so there is no point in implementing special logic for that case
-      actions = Enum.concat([caps, bufs, [redemand: :output]])
-      {{:ok, actions}, state}
-    else
+        # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
+        # but it is noop otherwise, so there is no point in implementing special logic for that case
+        actions = Enum.concat([caps, bufs, [redemand: :output]])
+        {{:ok, actions}, state}
+
       {:error, reason} ->
         {{:error, reason}, state}
     end
@@ -82,10 +85,12 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   @impl true
   def handle_caps(:input, _caps, _ctx, state) do
     # only redeclaring decoder - new caps will be generated in handle_process, after decoding key_frame
-    with {:ok, decoder_ref} <- Native.create() do
-      {{:ok, redemand: :output}, %{state | decoder_ref: decoder_ref, caps_changed: true}}
-    else
-      {:error, reason} -> {{:error, reason}, state}
+    case Native.create() do
+      {:ok, decoder_ref} ->
+        {{:ok, redemand: :output}, %{state | decoder_ref: decoder_ref, caps_changed: true}}
+
+      {:error, reason} ->
+        {{:error, reason}, state}
     end
   end
 
