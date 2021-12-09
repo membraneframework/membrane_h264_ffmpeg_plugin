@@ -8,7 +8,7 @@ defmodule Membrane.H264.FFmpeg.Common do
   """
   @spec to_h264_time_base_truncated(number | Ratio.t()) :: integer
   def to_h264_time_base_truncated(timestamp) do
-    (timestamp * @h264_time_base / Membrane.Time.second()) |> trunc()
+    (timestamp * @h264_time_base / Membrane.Time.second()) |> Ratio.trunc()
   end
 
   @doc """
@@ -16,6 +16,6 @@ defmodule Membrane.H264.FFmpeg.Common do
   """
   @spec to_membrane_time_base_truncated(number | Ratio.t()) :: integer
   def to_membrane_time_base_truncated(timestamp) do
-    timestamp * Membrane.Time.second() / @h264_time_base
+    (timestamp * Membrane.Time.second() / @h264_time_base) |> Ratio.trunc()
   end
 end
