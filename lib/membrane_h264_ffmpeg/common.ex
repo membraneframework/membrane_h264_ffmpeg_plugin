@@ -19,6 +19,6 @@ defmodule Membrane.H264.FFmpeg.Common do
   """
   @spec to_membrane_time_base(number | Ratio.t()) :: number | Ratio.t()
   def to_membrane_time_base(timestamp) do
-    timestamp * Membrane.Time.second() / @h264_time_base
+    (timestamp * Membrane.Time.second() / @h264_time_base) |> Ratio.trunc()
   end
 end
