@@ -21,6 +21,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   require Membrane.Logger
 
   @required_parameter_nalu [:pps, :sps]
+  @nalu_allowed_before_data [:sei] ++ @required_parameter_nalu
 
   def_input_pad :input,
     demand_unit: :buffers,
@@ -143,11 +144,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
       {:error, :not_enough_data} ->
         {{:ok, redemand: :output}, %{state | partial_frame: payload}}
-
-      {:error, :unknown_pattern} ->
-        raise ArgumentError,
-          message:
-            "Parser received buffer that doesn't match any supported pattern. Parser requires input compliant with Annex B specification."
     end
   end
 
@@ -408,41 +404,24 @@ defmodule Membrane.H264.FFmpeg.Parser do
     }
   end
 
-  defp carries_parameters_in_band?(<<0, 0, 0, 1, _rest::binary>> = payload)
-       when byte_size(payload) >= 40,
-       do:
-         Bunch.Binary.split_int_part(payload, 40)
-         |> elem(1)
-         |> do_carries_parameters_in_band?()
-
-  defp carries_parameters_in_band?(<<0, 0, 0, 1, _rest::binary>> = payload)
-       when byte_size(payload) < 40,
-       do: {:error, :not_enough_data}
-
-  defp carries_parameters_in_band?(<<0, 0, 1, _rest::binary>> = payload)
-       when byte_size(payload) >= 38,
-       do:
-         Bunch.Binary.split_int_part(payload, 38)
-         |> elem(1)
-         |> do_carries_parameters_in_band?()
-
-  defp carries_parameters_in_band?(<<0, 0, 1, _rest::binary>> = payload)
-       when byte_size(payload) < 38,
-       do: {:error, :not_enough_data}
-
-  defp carries_parameters_in_band?(payload)
-       when byte_size(payload) < 4,
-       do: {:error, :not_enough_data}
-
-  defp carries_parameters_in_band?(_otherwise), do: {:error, :unknown_pattern}
-
-  defp do_carries_parameters_in_band?(payload) do
+  defp carries_parameters_in_band?(payload) do
     types =
       NALu.parse(payload)
       |> elem(0)
       |> Enum.map(& &1.metadata.h264.type)
 
-    Enum.all?(@required_parameter_nalu, &Enum.member?(types, &1))
-    |> then(&{:ok, &1})
+    {parameters, data} = Enum.split_while(types, &Enum.member?(@nalu_allowed_before_data, &1))
+    has_required? = Enum.all?(@required_parameter_nalu, &Enum.member?(parameters, &1))
+
+    cond do
+      has_required? ->
+        {:ok, true}
+
+      data == [] ->
+        {:error, :not_enough_data}
+
+      true ->
+        {:ok, false}
+    end
   end
 end
