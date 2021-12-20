@@ -137,7 +137,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
     case carries_parameters_in_band?(payload) do
       {:ok, carries_params?} ->
-        payload = if carries_params?, do: payload, else: state.frame_prefix <> buffer.payload
+        payload = if carries_params?, do: payload, else: state.frame_prefix <> payload
         buffer = %Buffer{buffer | payload: payload}
         do_process(buffer, %{state | frame_prefix: nil, partial_frame: <<>>})
 
