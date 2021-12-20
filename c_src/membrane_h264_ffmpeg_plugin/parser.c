@@ -57,24 +57,24 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   UNIFEX_TERM res_term;
   int ret;
   size_t max_frames = 32, frames_cnt = 0, max_changes = 5, changes_cnt = 0;
+  AVPacket *pkt = NULL;
+
   unsigned *out_frame_sizes = unifex_alloc(max_frames * sizeof(unsigned));
   resolution *changes = unifex_alloc(max_changes * sizeof(resolution));
+  uint8_t *parser_input_buffer = unifex_alloc(payload->size + AV_INPUT_BUFFER_PADDING_SIZE);
+  pkt = av_packet_alloc();
 
-  AVPacket *pkt = NULL;
-  size_t old_size = payload->size;
-  ret =
-      unifex_payload_realloc(payload, old_size + AV_INPUT_BUFFER_PADDING_SIZE);
-  if (!ret) {
-    res_term = parse_result_error(env, "realloc");
+  if (!out_frame_sizes || !changes || !parser_input_buffer || !pkt) {
+    res_term = parse_result_error(env, "mem_alloc");
     goto exit_parse_frames;
   }
 
-  memset(payload->data + old_size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+  memcpy(parser_input_buffer, payload->data, payload->size);
+  memset(parser_input_buffer + payload->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 
-  pkt = av_packet_alloc();
 
   uint8_t *data_ptr = payload->data;
-  size_t data_left = old_size;
+  size_t data_left = payload->size;
   resolution *last_res =
       &(resolution){state->parser_ctx->width, state->parser_ctx->height, 0};
   while (data_left > 0) {
@@ -121,7 +121,6 @@ exit_parse_frames:
   unifex_free(out_frame_sizes);
   unifex_free(changes);
   av_packet_free(&pkt);
-  unifex_payload_realloc(payload, old_size);
   return res_term;
 }
 
