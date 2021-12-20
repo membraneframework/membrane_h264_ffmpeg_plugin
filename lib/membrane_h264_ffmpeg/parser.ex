@@ -127,14 +127,31 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, state) do
-    {payload, state} =
-      if is_nil(state.frame_prefix) or carries_parameters_in_band?(buffer.payload) do
-        {buffer.payload, state}
-      else
-        {state.frame_prefix <> buffer.payload, %{state | frame_prefix: nil}}
-      end
+  def handle_process(:input, buffer, _ctx, %{frame_prefix: nil} = state) do
+    do_process(buffer, state)
+  end
 
+  @impl true
+  def handle_process(:input, buffer, _ctx, state) do
+    payload = state.partial_frame <> buffer.payload
+
+    case carries_parameters_in_band?(payload) do
+      {:ok, carries_params?} ->
+        payload = if carries_params?, do: payload, else: state.frame_prefix <> buffer.payload
+        buffer = %Buffer{buffer | payload: payload}
+        do_process(buffer, %{state | frame_prefix: nil, partial_frame: <<>>})
+
+      {:error, :not_enough_data} ->
+        {{:ok, redemand: :output}, %{state | partial_frame: payload}}
+
+      {:error, :unknown_pattern} ->
+        raise ArgumentError,
+          message:
+            "Parser received buffer that doesn't match any supported pattern. Parser requires input compliant with Annex B specification."
+    end
+  end
+
+  defp do_process(%{payload: payload} = buffer, state) do
     case Native.parse(payload, state.parser_ref) do
       {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} ->
         metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
@@ -391,12 +408,41 @@ defmodule Membrane.H264.FFmpeg.Parser do
     }
   end
 
-  defp carries_parameters_in_band?(<<payload::binary-size(40), _rest::binary>>) do
+  defp carries_parameters_in_band?(<<0, 0, 0, 1, _rest::binary>> = payload)
+       when byte_size(payload) >= 40,
+       do:
+         Bunch.Binary.split_int_part(payload, 40)
+         |> elem(1)
+         |> do_carries_parameters_in_band?()
+
+  defp carries_parameters_in_band?(<<0, 0, 0, 1, _rest::binary>> = payload)
+       when byte_size(payload) < 40,
+       do: {:error, :not_enough_data}
+
+  defp carries_parameters_in_band?(<<0, 0, 1, _rest::binary>> = payload)
+       when byte_size(payload) >= 38,
+       do:
+         Bunch.Binary.split_int_part(payload, 38)
+         |> elem(1)
+         |> do_carries_parameters_in_band?()
+
+  defp carries_parameters_in_band?(<<0, 0, 1, _rest::binary>> = payload)
+       when byte_size(payload) < 38,
+       do: {:error, :not_enough_data}
+
+  defp carries_parameters_in_band?(payload)
+       when byte_size(payload) < 4,
+       do: {:error, :not_enough_data}
+
+  defp carries_parameters_in_band?(_otherwise), do: {:error, :unknown_pattern}
+
+  defp do_carries_parameters_in_band?(payload) do
     types =
       NALu.parse(payload)
       |> elem(0)
       |> Enum.map(& &1.metadata.h264.type)
 
     Enum.all?(@required_parameter_nalu, &Enum.member?(types, &1))
+    |> then(&{:ok, &1})
   end
 end

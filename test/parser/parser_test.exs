@@ -28,9 +28,14 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
     assert {:ok, state} = Parser.handle_caps(:input, input_caps, nil, state)
     assert state.frame_prefix == expected_prefix
 
-    # Check with stream that doesn't have pps and sps
+    # Check with stream that doesn't have pps and sps - first buffer too short
+    <<payload1::binary-size(20), payload2::binary>> = @no_params_stream
+
+    assert {{:ok, redemand: :output}, new_state} =
+             Parser.handle_process(:input, %Buffer{payload: payload1}, nil, state)
+
     assert {{:ok, actions}, %{frame_prefix: nil}} =
-             Parser.handle_process(:input, %Buffer{payload: @no_params_stream}, nil, state)
+             Parser.handle_process(:input, %Buffer{payload: payload2}, nil, new_state)
 
     nalu = get_nalu_types(actions) |> Enum.take(2)
     assert Enum.all?([:sps, :pps], &Enum.member?(nalu, &1))
