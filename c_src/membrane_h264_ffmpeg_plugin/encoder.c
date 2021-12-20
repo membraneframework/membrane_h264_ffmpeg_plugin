@@ -121,7 +121,6 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
 
     timestamps[*frame_cnt] = pkt->dts;
     frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
-    UnifexPayload payload_frame;
     UnifexPayloadType payload_type;
     if (use_shm) {
       payload_type = UNIFEX_PAYLOAD_SHM;
