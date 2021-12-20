@@ -34,14 +34,14 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
     assert {{:ok, redemand: :output}, new_state} =
              Parser.handle_process(:input, %Buffer{payload: payload1}, nil, state)
 
-    assert {{:ok, actions}, %{frame_prefix: nil}} =
+    assert {{:ok, actions}, %{frame_prefix: <<>>}} =
              Parser.handle_process(:input, %Buffer{payload: payload2}, nil, new_state)
 
     nalu = get_nalu_types(actions) |> Enum.take(2)
     assert Enum.all?([:sps, :pps], &Enum.member?(nalu, &1))
 
     # Check the stream with sps and pps - they shouldn't be inserted
-    assert {{:ok, actions}, %{frame_prefix: nil}} =
+    assert {{:ok, actions}, %{frame_prefix: <<>>}} =
              Parser.handle_process(:input, %Buffer{payload: @stream_with_params}, nil, state)
 
     nalu = get_nalu_types(actions) |> Enum.take(3)

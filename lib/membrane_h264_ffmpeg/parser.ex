@@ -127,19 +127,19 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_process(:input, buffer, _ctx, %{frame_prefix: nil} = state) do
+  def handle_process(:input, buffer, _ctx, %{frame_prefix: <<>>} = state) do
     do_process(buffer, state)
   end
 
   @impl true
-  def handle_process(:input, buffer, _ctx, state) do
+  def handle_process(:input, buffer, _ctx, state) when state.frame_prefix != <<>> do
     payload = state.partial_frame <> buffer.payload
 
     case carries_parameters_in_band?(payload) do
       {:ok, carries_params?} ->
         payload = if carries_params?, do: payload, else: state.frame_prefix <> payload
         buffer = %Buffer{buffer | payload: payload}
-        do_process(buffer, %{state | frame_prefix: nil, partial_frame: <<>>})
+        do_process(buffer, %{state | frame_prefix: <<>>, partial_frame: <<>>})
 
       {:error, :not_enough_data} ->
         {{:ok, redemand: :output}, %{state | partial_frame: payload}}
