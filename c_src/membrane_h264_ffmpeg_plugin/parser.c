@@ -73,7 +73,7 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
   memset(parser_input_buffer + payload->size, 0, AV_INPUT_BUFFER_PADDING_SIZE);
 
 
-  uint8_t *data_ptr = payload->data;
+  uint8_t *data_ptr = parser_input_buffer;
   size_t data_left = payload->size;
   resolution *last_res =
       &(resolution){state->parser_ctx->width, state->parser_ctx->height, 0};
