@@ -1,7 +1,7 @@
 defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   use Mix.Project
 
-  @version "0.13.1"
+  @version "0.13.2"
   @github_url "https://github.com/membraneframework/membrane_h264_ffmpeg_plugin"
 
   def project do
@@ -45,7 +45,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   defp package do
     [
       maintainers: ["Membrane Team"],
-      licenses: ["Apache 2.0"],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @github_url,
         "Membrane Framework Homepage" => "https://membraneframework.org"
@@ -65,7 +65,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       {:ratio, "~> 2.4.0"},
       {:unifex, "~> 0.7.0"},
       {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.1.0", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.1", only: [:dev, :test], runtime: false},
       {:membrane_element_rawvideo_parser, "~> 0.4.0", only: [:dev, :test]},
       {:membrane_file_plugin, "~> 0.6.0", only: [:dev, :test]}
     ]
