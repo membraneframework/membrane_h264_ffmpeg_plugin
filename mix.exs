@@ -45,7 +45,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   defp package do
     [
       maintainers: ["Membrane Team"],
-      licenses: ["Apache 2.0"],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @github_url,
         "Membrane Framework Homepage" => "https://membraneframework.org"
@@ -57,15 +57,15 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   defp deps do
     [
       {:bunch, "~> 1.3.0"},
-      {:ex_doc, "~> 0.24", only: :dev, runtime: false},
+      {:unifex, "~> 0.7.2"},
+      {:membrane_core, "~> 0.8.0"},
+      {:membrane_common_c, "~> 0.10.0"},
       {:membrane_h264_format, "~> 0.3.0"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
-      {:membrane_common_c, "~> 0.10.0"},
-      {:membrane_core, "~> 0.8.0"},
       {:ratio, "~> 2.4.0"},
-      {:unifex, "~> 0.7.0"},
-      {:credo, "~> 1.6.1", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.1.0", only: [:dev, :test], runtime: false},
+      {:ex_doc, "~> 0.26", only: :dev, runtime: false},
+      {:credo, "~> 1.6", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.1", only: :dev, runtime: false},
       {:membrane_element_rawvideo_parser, "~> 0.5.0", only: [:dev, :test]},
       {:membrane_file_plugin, "~> 0.7.0", only: [:dev, :test]}
     ]
