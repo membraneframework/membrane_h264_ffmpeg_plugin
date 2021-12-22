@@ -141,7 +141,7 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
       frames_cnt++;
     }
   }
-  
+
   res_term =
       parse_result_ok(env, 
                       out_frame_sizes, frames_cnt, 
@@ -152,6 +152,7 @@ exit_parse_frames:
   unifex_free(out_frame_sizes);
   unifex_free(decoding_order_numbers);
   unifex_free(presentation_order_numbers);
+  unifex_free(parser_input_buffer);
   unifex_free(changes);
   av_packet_free(&pkt);
   return res_term;
