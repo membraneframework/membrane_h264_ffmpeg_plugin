@@ -120,6 +120,7 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
 exit_parse_frames:
   unifex_free(out_frame_sizes);
   unifex_free(changes);
+  unifex_free(parser_input_buffer);
   av_packet_free(&pkt);
   return res_term;
 }
