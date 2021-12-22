@@ -20,8 +20,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
   alias Membrane.H264
   require Membrane.Logger
 
-  @required_parameter_nalu [:pps, :sps]
-  @nalu_allowed_before_data [:sei] ++ @required_parameter_nalu
+  @required_parameter_nalus MapSet.new([:pps, :sps])
+  @nalus_allowed_before_data MapSet.new([:sei, :pps, :sps])
 
   def_input_pad :input,
     demand_unit: :buffers,
@@ -147,7 +147,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     end
   end
 
-  defp do_process(%{payload: payload} = buffer, state) do
+  defp do_process(%Buffer{payload: payload} = buffer, state) do
     case Native.parse(payload, state.parser_ref) do
       {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} ->
         metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
@@ -410,14 +410,16 @@ defmodule Membrane.H264.FFmpeg.Parser do
       |> elem(0)
       |> Enum.map(& &1.metadata.h264.type)
 
-    {parameters, data} = Enum.split_while(types, &Enum.member?(@nalu_allowed_before_data, &1))
-    has_required? = Enum.all?(@required_parameter_nalu, &Enum.member?(parameters, &1))
+    {parameter_nalus, data_nalus} =
+      Enum.split_while(types, &MapSet.member?(@nalus_allowed_before_data, &1))
+
+    has_required? = MapSet.subset?(@required_parameter_nalus, MapSet.new(parameter_nalus))
 
     cond do
       has_required? ->
         {:ok, true}
 
-      data == [] ->
+      data_nalus == [] ->
         {:error, :not_enough_data}
 
       true ->
