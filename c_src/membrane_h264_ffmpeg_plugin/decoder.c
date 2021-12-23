@@ -70,7 +70,6 @@ static int get_frames(UnifexEnv *env, AVPacket *pkt,
 
     frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
 
-    UnifexPayload payload_frame;
     UnifexPayloadType payload_type;
     if (use_shm) {
       payload_type = UNIFEX_PAYLOAD_SHM;
@@ -84,8 +83,6 @@ static int get_frames(UnifexEnv *env, AVPacket *pkt,
         frames[*frame_cnt]->data, payload_size,
         (const uint8_t *const *)frame->data, (const int *)frame->linesize,
         state->codec_ctx->pix_fmt, frame->width, frame->height, 1);
-    
-    
 
     (*frame_cnt)++;
 
