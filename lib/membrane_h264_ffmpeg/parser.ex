@@ -127,19 +127,28 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {{:ok, demand: :input}, state}
   end
 
+  # If frame prefix has been applied, proceed to parsing the buffer
   @impl true
   def handle_process(:input, buffer, _ctx, %{frame_prefix: <<>>} = state) do
     do_process(buffer, state)
   end
 
+  # If there is a frame prefix to be applied, check that there are no in-band parameters and write the prefix if necessary
   @impl true
   def handle_process(:input, buffer, _ctx, state) when state.frame_prefix != <<>> do
     payload = state.partial_frame <> buffer.payload
 
     case carries_parameters_in_band?(payload) do
       {:ok, carries_params?} ->
-        payload = if carries_params?, do: payload, else: state.frame_prefix <> payload
+        payload =
+          if carries_params?,
+            # If the stream carries parameters in-band, don't add the frame prefix. In-band parameters take priority
+            do: payload,
+            # Frame appeared without SPS and PPS, we need to insert them
+            else: state.frame_prefix <> payload
+
         buffer = %Buffer{buffer | payload: payload}
+        # frame prefix can always be emptied. We either inserted it or we don't need it
         do_process(buffer, %{state | frame_prefix: <<>>, partial_frame: <<>>})
 
       {:error, :not_enough_data} ->
@@ -404,19 +413,24 @@ defmodule Membrane.H264.FFmpeg.Parser do
     }
   end
 
+  # Checks is the required parameter NALus (#{inspect}) are present in-band, before any video frames appears
   defp carries_parameters_in_band?(payload) do
     types =
       NALu.parse(payload)
       |> elem(0)
       |> Enum.map(& &1.metadata.h264.type)
 
+    # split NALus parsed from the payload into two sections: parameters and data
+    # if data appears before required parameters, this would case an error in FFmpeg, so we evaluate the stream as not carrying parameters in-band
+    # if this is the case, they will be inserted into the stream before parsing, assuming that H264.RemoteStream caps are present
     {parameter_nalus, data_nalus} =
       Enum.split_while(types, &MapSet.member?(@nalus_allowed_before_data, &1))
 
-    has_required? = MapSet.subset?(@required_parameter_nalus, MapSet.new(parameter_nalus))
+    has_required_parameters? =
+      MapSet.subset?(@required_parameter_nalus, MapSet.new(parameter_nalus))
 
     cond do
-      has_required? ->
+      has_required_parameters? ->
         {:ok, true}
 
       data_nalus == [] ->
