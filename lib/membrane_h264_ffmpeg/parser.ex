@@ -20,8 +20,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
   alias Membrane.H264
   require Membrane.Logger
 
-  @required_parameter_nalus MapSet.new([:pps, :sps])
-  @nalus_allowed_before_data MapSet.new([:sei, :pps, :sps])
+  @required_parameter_nalus_set MapSet.new([:pps, :sps])
+  @parameter_nalus_set MapSet.new([:sei, :pps, :sps])
 
   def_input_pad :input,
     demand_unit: :buffers,
@@ -83,6 +83,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 description: """
                 Determines whether to drop the stream until the first key frame is received.
                 """
+              ],
+              skip_until_parameters?: [
+                type: :boolean,
+                default: true
               ]
 
   @impl true
@@ -95,6 +99,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
       skip_until_keyframe?: opts.skip_until_keyframe?,
+      skip_until_parameters?: opts.skip_until_parameters?,
       metadata: nil
     }
 
@@ -125,6 +130,32 @@ defmodule Membrane.H264.FFmpeg.Parser do
   @impl true
   def handle_demand(:output, _size, :buffers, _ctx, state) do
     {{:ok, demand: :input}, state}
+  end
+
+  @impl true
+  def handle_process(
+        :input,
+        buffer,
+        _ctx,
+        %{skip_until_parameters?: true, frame_prefix: <<>>} = state
+      ) do
+    {_invalid_data, data} =
+      NALu.parse(buffer.payload)
+      |> elem(0)
+      |> Enum.split_while(
+        &(not MapSet.member?(@parameter_nalus_set, &1.metadata.h264.type))
+      )
+
+    case data do
+      [elem | _rest] ->
+        {start, _length} = elem.prefixed_poslen
+        <<_head::binary-size(start), data::binary>> = buffer.payload
+        buffer = %Buffer{buffer | payload: data}
+        do_process(buffer, %{state | skip_until_parameters?: false})
+
+      _otherwise ->
+        {{:ok, redemand: :output}, state}
+    end
   end
 
   # If frame prefix has been applied, proceed to parsing the buffer
@@ -413,7 +444,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     }
   end
 
-  # Checks if the required parameter NALus (see @required_parameter_nalus) are present in-band before any video frames appear
+  # Checks if the required parameter NALus (see @required_parameter_nalus_set) are present in-band before any video frames appear
   defp carries_parameters_in_band?(payload) do
     types =
       NALu.parse(payload)
@@ -426,10 +457,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
     # In such a case, they will be inserted into the stream before parsing,
     # assuming that H264.RemoteStream caps providing them are present
     {parameter_nalus, data_nalus} =
-      Enum.split_while(types, &MapSet.member?(@nalus_allowed_before_data, &1))
+      Enum.split_while(types, &MapSet.member?(@parameter_nalus_set, &1))
 
     has_required_parameters? =
-      MapSet.subset?(@required_parameter_nalus, MapSet.new(parameter_nalus))
+      MapSet.subset?(@required_parameter_nalus_set, MapSet.new(parameter_nalus))
 
     cond do
       has_required_parameters? ->
