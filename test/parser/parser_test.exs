@@ -46,7 +46,7 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
     state = init_pipeline()
     <<payload1::binary-size(5), payload2::binary>> = @no_params_stream
 
-    assert {{:ok, redemand: :output}, new_state} =
+    assert {:ok, new_state} =
              Parser.handle_process(:input, %Buffer{payload: payload1}, nil, state)
 
     assert {{:ok, _actions}, %{frame_prefix: <<>>}} =

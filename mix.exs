@@ -58,7 +58,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
     [
       {:bunch, "~> 1.3.0"},
       {:unifex, "~> 0.7.2"},
-      {:membrane_core, "~> 0.8.0"},
+      {:membrane_core, github: "membraneframework/membrane_core", override: true},
       {:membrane_common_c, "~> 0.10.0"},
       {:membrane_h264_format, "~> 0.3.0"},
       {:membrane_caps_video_raw, "~> 0.1.0"},
