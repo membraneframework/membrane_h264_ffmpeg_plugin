@@ -1,7 +1,7 @@
 defmodule DecodingTest do
   use ExUnit.Case
   import Membrane.Testing.Assertions
-  alias Membrane.Element
+  alias Membrane.RawVideo
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
 
@@ -17,7 +17,7 @@ defmodule DecodingTest do
     Pipeline.start_link(%Pipeline.Options{
       elements: [
         file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
-        parser: %Element.RawVideo.Parser{width: width, height: height, format: format},
+        parser: %RawVideo.Parser{width: width, height: height, format: format},
         encoder: %H264.FFmpeg.Encoder{preset: :fast, crf: 30},
         sink: %Membrane.File.Sink{location: out_path}
       ]

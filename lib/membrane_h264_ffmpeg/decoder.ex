@@ -26,9 +26,11 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   def_input_pad :input,
     demand_unit: :buffers,
+    demand_mode: :auto,
     caps: {H264, stream_format: :byte_stream, alignment: :au}
 
   def_output_pad :output,
+    demand_mode: :auto,
     caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
 
   @impl true
@@ -46,11 +48,6 @@ defmodule Membrane.H264.FFmpeg.Decoder do
       {:error, reason} ->
         {{:error, reason}, state}
     end
-  end
-
-  @impl true
-  def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
   end
 
   @impl true
@@ -72,10 +69,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
         in_caps = ctx.pads.input.caps
         {caps, state} = update_caps_if_needed(state, in_caps)
 
-        # redemand actually makes sense only for the first call (because decoder keeps 2 frames buffered)
-        # but it is noop otherwise, so there is no point in implementing special logic for that case
-        actions = Enum.concat([caps, bufs, [redemand: :output]])
-        {{:ok, actions}, state}
+        {{:ok, caps ++ bufs}, state}
 
       {:error, reason} ->
         {{:error, reason}, state}
@@ -87,7 +81,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     # only redeclaring decoder - new caps will be generated in handle_process, after decoding key_frame
     case Native.create() do
       {:ok, decoder_ref} ->
-        {{:ok, redemand: :output}, %{state | decoder_ref: decoder_ref, caps_changed: true}}
+        {:ok, %{state | decoder_ref: decoder_ref, caps_changed: true}}
 
       {:error, reason} ->
         {{:error, reason}, state}
