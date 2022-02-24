@@ -9,7 +9,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   use Membrane.Filter
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.Raw
+  alias Membrane.RawVideo
   alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
 
@@ -31,7 +31,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   def_output_pad :output,
     demand_mode: :auto,
-    caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
+    caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
 
   @impl true
   def handle_init(opts) do
@@ -132,9 +132,9 @@ defmodule Membrane.H264.FFmpeg.Decoder do
         %H264{framerate: in_framerate} -> in_framerate
       end
 
-    %Raw{
+    %RawVideo{
       aligned: true,
-      format: pix_fmt,
+      pixel_format: pix_fmt,
       framerate: framerate,
       height: height,
       width: width
