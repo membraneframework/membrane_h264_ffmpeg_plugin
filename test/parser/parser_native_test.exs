@@ -7,7 +7,7 @@ defmodule Parser.NativeTest do
 
     assert {:ok, file} = File.read(in_path)
     assert {:ok, decoder_ref} = Parser.create()
-    assert <<frame::bytes-size(7469), _::binary>> = file
+    assert <<frame::bytes-size(7469), _rest::binary>> = file
 
     assert {:ok, _frames, _decoding_order_numbers, _presentation_order_numbers, _changes} =
              Parser.parse(frame, decoder_ref)
