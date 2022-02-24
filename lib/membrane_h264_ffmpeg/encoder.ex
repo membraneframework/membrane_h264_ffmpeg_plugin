@@ -15,14 +15,14 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   use Bunch.Typespec
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.Raw
   alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
+  alias Membrane.RawVideo
 
   def_input_pad :input,
     demand_mode: :auto,
     demand_unit: :buffers,
-    caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
+    caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
 
   def_output_pad :output,
     demand_mode: :auto,
@@ -124,7 +124,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_caps(:input, %Raw{} = caps, _ctx, state) do
+  def handle_caps(:input, %RawVideo{} = caps, _ctx, state) do
     {framerate_num, framerate_denom} = caps.framerate
 
     with {:ok, buffers} <- flush_encoder_if_exists(state),
@@ -132,7 +132,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
            Native.create(
              caps.width,
              caps.height,
-             caps.format,
+             caps.pixel_format,
              state.preset,
              state.profile,
              state.max_b_frames,
