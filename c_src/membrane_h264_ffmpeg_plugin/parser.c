@@ -20,7 +20,7 @@ UNIFEX_TERM create(UnifexEnv *env) {
   state->last_frame_number = -1; 
   state->poc_offset = 0;
 
-  AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+  const AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
   if (!codec) {
     res = create_result_error(env, "nocodec");
     goto exit_create;
