@@ -322,7 +322,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
          state,
          acc
        ) do
-    {Enum.reverse(acc), input, state}
+    {acc |> Enum.reverse() |> List.flatten(), input, state}
   end
 
   defp do_parse_access_units(
