@@ -8,12 +8,10 @@ defmodule DecoderTest do
 
   @framerate 30
 
-  defp prepare_paths(filename) do
+  defp prepare_paths(filename, tmp_dir) do
     in_path = "../fixtures/input-#{filename}.h264" |> Path.expand(__DIR__)
     reference_path = "../fixtures/reference-#{filename}.raw" |> Path.expand(__DIR__)
-    out_path = "/tmp/output-decoding-#{filename}.raw"
-    File.rm(out_path)
-    on_exit(fn -> File.rm(out_path) end)
+    out_path = Path.join(tmp_dir, "output-decoding-#{filename}.raw")
     {in_path, reference_path, out_path}
   end
 
@@ -45,8 +43,8 @@ defmodule DecoderTest do
     assert a == b
   end
 
-  defp perform_decoding_test(filename, timeout) do
-    {in_path, ref_path, out_path} = prepare_paths(filename)
+  defp perform_decoding_test(filename, tmp_dir, timeout) do
+    {in_path, ref_path, out_path} = prepare_paths(filename, tmp_dir)
 
     assert {:ok, pid} = make_pipeline(in_path, out_path)
     assert Pipeline.play(pid) == :ok
@@ -56,8 +54,8 @@ defmodule DecoderTest do
     Testing.Pipeline.stop_and_terminate(pid, blocking?: true)
   end
 
-  defp perform_timestamping_test(filename, frame_count) do
-    {in_path, _ref_path, _out_path} = prepare_paths(filename)
+  defp perform_timestamping_test(filename, tmp_dir, frame_count) do
+    {in_path, _ref_path, _out_path} = prepare_paths(filename, tmp_dir)
 
     frame_duration = Ratio.div(Membrane.Time.second(), @framerate)
 
@@ -81,28 +79,29 @@ defmodule DecoderTest do
   end
 
   describe "DecodingPipeline should" do
-    test "decode 10 720p frames" do
-      perform_decoding_test("10-720p", 500)
+    @describetag :tmp_dir
+    test "decode 10 720p frames", ctx do
+      perform_decoding_test("10-720p", ctx.tmp_dir, 500)
     end
 
-    test "decode 100 240p frames" do
-      perform_decoding_test("100-240p", 1000)
+    test "decode 100 240p frames", ctx do
+      perform_decoding_test("100-240p", ctx.tmp_dir, 1000)
     end
 
-    test "decode 20 360p frames with 422 subsampling" do
-      perform_decoding_test("20-360p-I422", 1000)
+    test "decode 20 360p frames with 422 subsampling", ctx do
+      perform_decoding_test("20-360p-I422", ctx.tmp_dir, 1000)
     end
 
-    test "decode 10 720p frames with B frames in main profile" do
-      perform_decoding_test("10-720p-main", 1000)
+    test "decode 10 720p frames with B frames in main profile", ctx do
+      perform_decoding_test("10-720p-main", ctx.tmp_dir, 1000)
     end
 
-    test "append correct timestamps to 10 720p frames" do
-      perform_timestamping_test("10-720p-no-b-frames", 10)
+    test "append correct timestamps to 10 720p frames", ctx do
+      perform_timestamping_test("10-720p-no-b-frames", ctx.tmp_dir, 10)
     end
 
-    test "append correct timestamps to 100 240p frames" do
-      perform_timestamping_test("100-240p-no-b-frames", 100)
+    test "append correct timestamps to 100 240p frames", ctx do
+      perform_timestamping_test("100-240p-no-b-frames", ctx.tmp_dir, 100)
     end
   end
 end
