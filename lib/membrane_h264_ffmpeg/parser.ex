@@ -20,8 +20,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   alias Membrane.H264
   require Membrane.Logger
 
-  @required_parameter_nalus MapSet.new([:pps, :sps])
-  @nalus_allowed_before_data MapSet.new([:sei, :pps, :sps])
+  @required_parameter_nalus [:pps, :sps]
 
   def_input_pad :input,
     demand_unit: :buffers,
@@ -422,6 +421,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
     }
   end
 
+  defguardp is_allowed_before_data(nalu) when nalu in [:sei, :pps, :sps]
+
   # Checks if the required parameter NALus (see @required_parameter_nalus) are present in-band before any video frames appear
   defp carries_parameters_in_band?(payload) do
     types =
@@ -434,11 +435,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
     # so we identify the stream as not carrying parameters in-band.
     # In such a case, they will be inserted into the stream before parsing,
     # assuming that H264.RemoteStream caps providing them are present
-    {parameter_nalus, data_nalus} =
-      Enum.split_while(types, &MapSet.member?(@nalus_allowed_before_data, &1))
+    {parameter_nalus, data_nalus} = Enum.split_while(types, &is_allowed_before_data/1)
+
+    parameter_nalus_set = MapSet.new(parameter_nalus)
 
     has_required_parameters? =
-      MapSet.subset?(@required_parameter_nalus, MapSet.new(parameter_nalus))
+      @required_parameter_nalus |> Enum.all?(&MapSet.member?(parameter_nalus_set, &1))
 
     cond do
       has_required_parameters? ->
