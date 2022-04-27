@@ -179,6 +179,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
   # analize resolution changes and generate appropriate caps before corresponding buffers
   defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
 
+  defp parse_resolution_changes(_state, [], _res_changes, acc, _index_offset) do
+    acc
+  end
+
   defp parse_resolution_changes(_state, bufs, [], acc, _index_offset) do
     acc ++ [buffer: {:output, bufs}]
   end
@@ -188,11 +192,19 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {old_bufs, next_bufs} = Enum.split(bufs, updated_index)
     next_caps = mk_caps(state, meta.width, meta.height)
 
+    actions = [caps: {:output, next_caps}]
+
+    actions =
+      case old_bufs do
+        [] -> actions
+        _non_empty -> [{:buffer, {:output, old_bufs}} | actions]
+      end
+
     parse_resolution_changes(
       state,
       next_bufs,
       resolution_changes,
-      acc ++ [buffer: {:output, old_bufs}, caps: {:output, next_caps}],
+      acc ++ actions,
       meta.index
     )
   end
