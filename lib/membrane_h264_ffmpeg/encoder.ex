@@ -15,15 +15,17 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   use Bunch.Typespec
   alias __MODULE__.Native
   alias Membrane.Buffer
-  alias Membrane.Caps.Video.Raw
   alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
+  alias Membrane.RawVideo
 
   def_input_pad :input,
+    demand_mode: :auto,
     demand_unit: :buffers,
-    caps: {Raw, format: one_of([:I420, :I422]), aligned: true}
+    caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
 
   def_output_pad :output,
+    demand_mode: :auto,
     caps: {H264, stream_format: :byte_stream, alignment: :au}
 
   @default_crf 23
@@ -56,7 +58,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
               preset: [
                 description: """
                 Collection of predefined options providing certain encoding.
-                The slower the preset choosen, the higher compression for the
+                The slower the preset chosen, the higher compression for the
                 same quality can be achieved.
                 """,
                 type: :atom,
@@ -101,16 +103,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   defp max_b_frames_to_native_format(opts), do: opts
 
   @impl true
-  def handle_demand(:output, _size, :buffers, _ctx, %{encoder_ref: nil} = state) do
-    # Wait until we have an encoder
-    {:ok, state}
-  end
-
-  def handle_demand(:output, size, :buffers, _ctx, state) do
-    {{:ok, demand: {:input, size}}, state}
-  end
-
-  @impl true
   def handle_process(:input, buffer, _ctx, state) do
     %{encoder_ref: encoder_ref, use_shm?: use_shm?} = state
     pts = buffer.pts || 0
@@ -124,10 +116,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
       {:ok, dts_list, frames} ->
         bufs = wrap_frames(dts_list, frames)
 
-        # redemand is needed until the internal buffer of encoder is filled (no buffers will be
-        # generated before that) but it is a noop if the demand has been fulfilled
-        actions = bufs ++ [redemand: :output]
-        {{:ok, actions}, state}
+        {{:ok, bufs}, state}
 
       {:error, reason} ->
         {{:error, reason}, state}
@@ -135,7 +124,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_caps(:input, %Raw{} = caps, _ctx, state) do
+  def handle_caps(:input, %RawVideo{} = caps, _ctx, state) do
     {framerate_num, framerate_denom} = caps.framerate
 
     with {:ok, buffers} <- flush_encoder_if_exists(state),
@@ -143,7 +132,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
            Native.create(
              caps.width,
              caps.height,
-             caps.format,
+             caps.pixel_format,
              state.preset,
              state.profile,
              state.max_b_frames,
@@ -152,7 +141,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              state.crf
            ) do
       caps = create_new_caps(caps, state)
-      actions = buffers ++ [caps: caps, redemand: :output]
+      actions = buffers ++ [caps: caps]
       {{:ok, actions}, %{state | encoder_ref: new_encoder_ref}}
     else
       {:error, reason} -> {{:error, reason}, state}

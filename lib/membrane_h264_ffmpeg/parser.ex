@@ -25,9 +25,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   def_input_pad :input,
     demand_unit: :buffers,
+    demand_mode: :auto,
     caps: :any
 
   def_output_pad :output,
+    demand_mode: :auto,
     caps: {H264, stream_format: :byte_stream}
 
   def_options framerate: [
@@ -128,11 +130,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_demand(:output, _size, :buffers, _ctx, state) do
-    {{:ok, demand: :input}, state}
-  end
-
-  @impl true
   def handle_process(
         :input,
         buffer,
@@ -154,7 +151,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         do_process(buffer, %{state | skip_until_parameters?: false})
 
       _otherwise ->
-        {{:ok, redemand: :output}, state}
+        {:ok, state}
     end
   end
 
@@ -183,7 +180,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         do_process(buffer, %{state | frame_prefix: <<>>, partial_frame: <<>>})
 
       {:error, :not_enough_data} ->
-        {{:ok, redemand: :output}, %{state | partial_frame: payload}}
+        {:ok, %{state | partial_frame: payload}}
     end
   end
 
@@ -203,7 +200,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
           )
 
         actions = parse_resolution_changes(state, bufs, resolution_changes)
-        {{:ok, actions ++ [redemand: :output]}, state}
+        {{:ok, actions}, state}
 
       {:error, reason} ->
         {{:error, reason}, state}
