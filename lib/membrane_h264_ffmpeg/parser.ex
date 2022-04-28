@@ -139,9 +139,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {_invalid_data, data} =
       NALu.parse(buffer.payload)
       |> elem(0)
-      |> Enum.split_while(
-        &(not MapSet.member?(@parameter_nalus_set, &1.metadata.h264.type))
-      )
+      |> Enum.split_while(&(not MapSet.member?(@parameter_nalus_set, &1.metadata.h264.type)))
 
     case data do
       [elem | _rest] ->
