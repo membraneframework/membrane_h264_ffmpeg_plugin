@@ -12,13 +12,18 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       elixir: "~> 1.12",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      deps: deps(),
+      dialyzer: dialyzer(),
+
+      # Hex
       description: "Membrane H264 parser, decoder and encoder based on FFmpeg and x264",
       package: package(),
+
+      # Docs
       name: "Membrane H264 FFmpeg plugin",
       source_url: @github_url,
-      docs: docs(),
       homepage_url: "https://membraneframework.org",
-      deps: deps()
+      docs: docs()
     ]
   end
 
@@ -30,6 +35,37 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
 
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_env), do: ["lib"]
+
+  defp deps do
+    [
+      {:bunch, "~> 1.3.0"},
+      {:unifex, "~> 0.7.2"},
+      {:membrane_core, "~> 0.10.0"},
+      {:membrane_common_c, "~> 0.12.0"},
+      {:membrane_h264_format, "~> 0.3.0"},
+      {:membrane_raw_video_format, "~> 0.2.0"},
+      {:ratio, "~> 2.4.0"},
+      {:ex_doc, "~> 0.28", only: :dev, runtime: false},
+      {:credo, "~> 1.6", only: :dev, runtime: false},
+      {:dialyxir, "~> 1.1", only: :dev, runtime: false},
+      {:membrane_raw_video_parser_plugin, "~> 0.7", only: :test},
+      {:membrane_file_plugin, "~> 0.8", only: :test}
+    ]
+  end
+
+  defp dialyzer() do
+    opts = [
+      flags: [:error_handling]
+    ]
+
+    if System.get_env("CI") == "true" do
+      # Store PLTs in cacheable directory for CI
+      File.mkdir_p!(Path.join([__DIR__, "priv", "plts"]))
+      [plt_local_path: "priv/plts", plt_core_path: "priv/plts"] ++ opts
+    else
+      opts
+    end
+  end
 
   defp docs do
     [
@@ -51,24 +87,8 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
         "GitHub" => @github_url,
         "Membrane Framework Homepage" => "https://membraneframework.org"
       },
-      files: ["lib", "mix.exs", "README*", "LICENSE*", ".formatter.exs", "bundlex.exs", "c_src"]
-    ]
-  end
-
-  defp deps do
-    [
-      {:bunch, "~> 1.3.0"},
-      {:unifex, "~> 0.7.2"},
-      {:membrane_core, "~> 0.10.0"},
-      {:membrane_common_c, "~> 0.12.0"},
-      {:membrane_h264_format, "~> 0.3.0"},
-      {:membrane_raw_video_format, "~> 0.2.0"},
-      {:ratio, "~> 2.4.0"},
-      {:ex_doc, "~> 0.28", only: :dev, runtime: false},
-      {:credo, "~> 1.6", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.1", only: :dev, runtime: false},
-      {:membrane_raw_video_parser_plugin, "~> 0.7", only: :test},
-      {:membrane_file_plugin, "~> 0.8", only: :test}
+      files: ["lib", "mix.exs", "README*", "LICENSE*", ".formatter.exs", "bundlex.exs", "c_src"],
+      exclude_patterns: [~r"c_src/.*/_generated.*"]
     ]
   end
 end

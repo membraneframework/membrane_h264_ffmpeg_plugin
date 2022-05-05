@@ -1,5 +1,5 @@
 defmodule Membrane.H264.FFmpeg.Parser.Test do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Membrane.H264.FFmpeg.Parser
   alias Membrane.Buffer
@@ -49,8 +49,15 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
     assert {:ok, new_state} =
              Parser.handle_process(:input, %Buffer{payload: payload1}, nil, state)
 
-    assert {{:ok, _actions}, %{frame_prefix: <<>>}} =
+    assert {{:ok, actions}, %{frame_prefix: <<>>}} =
              Parser.handle_process(:input, %Buffer{payload: payload2}, nil, new_state)
+
+    assert [caps: {:output, _format}, buffer: {:output, buffers}] = actions
+    assert length(buffers) > 0
+
+    for buffer <- buffers do
+      assert %Buffer{} = buffer
+    end
   end
 
   defp init_pipeline() do

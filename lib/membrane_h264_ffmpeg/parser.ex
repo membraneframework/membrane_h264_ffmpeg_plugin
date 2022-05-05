@@ -20,8 +20,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
   alias Membrane.H264
   require Membrane.Logger
 
-  @required_parameter_nalus_set MapSet.new([:pps, :sps])
-  @parameter_nalus_set MapSet.new([:sei, :pps, :sps])
+  @required_parameter_nalus [:pps, :sps]
+
+  defguardp is_allowed_before_data(nalu) when nalu in [:sei, :pps, :sps]
 
   def_input_pad :input,
     demand_unit: :buffers,
@@ -139,20 +140,20 @@ defmodule Membrane.H264.FFmpeg.Parser do
         _ctx,
         %{skip_until_parameters?: true, frame_prefix: <<>>} = state
       ) do
-    {_invalid_data, data} =
+    next_params_nalus =
       NALu.parse(buffer.payload)
       |> elem(0)
-      |> Enum.split_while(&(not MapSet.member?(@parameter_nalus_set, &1.metadata.h264.type)))
+      |> Enum.drop_while(&(not is_allowed_before_data(&1.metadata.h264.type)))
 
-    case data do
-      [elem | _rest] ->
-        {start, _length} = elem.prefixed_poslen
-        <<_head::binary-size(start), data::binary>> = buffer.payload
+    case next_params_nalus do
+      [] ->
+        {:ok, state}
+
+      [non_data_nalu | _rest] ->
+        {start, _length} = non_data_nalu.prefixed_poslen
+        <<_skipped_data::binary-size(start), data::binary>> = buffer.payload
         buffer = %Buffer{buffer | payload: data}
         do_process(buffer, %{state | skip_until_parameters?: false})
-
-      _otherwise ->
-        {:ok, state}
     end
   end
 
@@ -211,8 +212,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
   # analize resolution changes and generate appropriate caps before corresponding buffers
   defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
 
+  defp parse_resolution_changes(_state, [], _res_changes, acc, _index_offset) do
+    acc |> Enum.reverse()
+  end
+
   defp parse_resolution_changes(_state, bufs, [], acc, _index_offset) do
-    acc ++ [buffer: {:output, bufs}]
+    ([buffer: {:output, bufs}] ++ acc)
+    |> Enum.reverse()
   end
 
   defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc, index_offset) do
@@ -220,11 +226,19 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {old_bufs, next_bufs} = Enum.split(bufs, updated_index)
     next_caps = mk_caps(state, meta.width, meta.height)
 
+    caps = [caps: {:output, next_caps}]
+
+    buffers_before_change =
+      case old_bufs do
+        [] -> []
+        _non_empty -> [buffer: {:output, old_bufs}]
+      end
+
     parse_resolution_changes(
       state,
       next_bufs,
       resolution_changes,
-      acc ++ [buffer: {:output, old_bufs}, caps: {:output, next_caps}],
+      caps ++ buffers_before_change ++ acc,
       meta.index
     )
   end
@@ -354,7 +368,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
          state,
          acc
        ) do
-    {Enum.reverse(acc), input, state}
+    {acc |> Enum.reverse() |> List.flatten(), input, state}
   end
 
   defp do_parse_access_units(
@@ -442,7 +456,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     }
   end
 
-  # Checks if the required parameter NALus (see @required_parameter_nalus_set) are present in-band before any video frames appear
+  # Checks if the required parameter NALus (see @required_parameter_nalus) are present in-band before any video frames appear
   defp carries_parameters_in_band?(payload) do
     types =
       NALu.parse(payload)
@@ -454,11 +468,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
     # so we identify the stream as not carrying parameters in-band.
     # In such a case, they will be inserted into the stream before parsing,
     # assuming that H264.RemoteStream caps providing them are present
-    {parameter_nalus, data_nalus} =
-      Enum.split_while(types, &MapSet.member?(@parameter_nalus_set, &1))
+    {parameter_nalus, data_nalus} = Enum.split_while(types, &is_allowed_before_data/1)
+
+    parameter_nalus_set = MapSet.new(parameter_nalus)
 
     has_required_parameters? =
-      MapSet.subset?(@required_parameter_nalus_set, MapSet.new(parameter_nalus))
+      @required_parameter_nalus |> Enum.all?(&MapSet.member?(parameter_nalus_set, &1))
 
     cond do
       has_required_parameters? ->
