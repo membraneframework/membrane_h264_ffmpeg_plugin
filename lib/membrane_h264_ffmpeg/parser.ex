@@ -22,6 +22,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @required_parameter_nalus [:pps, :sps]
 
+  defguardp is_allowed_before_data(nalu) when nalu in [:sei, :pps, :sps]
+
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
@@ -84,6 +86,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 description: """
                 Determines whether to drop the stream until the first key frame is received.
                 """
+              ],
+              skip_until_parameters?: [
+                type: :boolean,
+                default: true,
+                description: """
+                Determines whether to drop the stream until the first set of SPS and PPS is received.
+                """
               ]
 
   @impl true
@@ -96,6 +105,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       alignment: opts.alignment,
       attach_nalus?: opts.attach_nalus?,
       skip_until_keyframe?: opts.skip_until_keyframe?,
+      skip_until_parameters?: opts.skip_until_parameters?,
       metadata: nil
     }
 
@@ -121,6 +131,30 @@ defmodule Membrane.H264.FFmpeg.Parser do
   @impl true
   def handle_prepared_to_playing(_ctx, state) do
     {:ok, state}
+  end
+
+  @impl true
+  def handle_process(
+        :input,
+        buffer,
+        _ctx,
+        %{skip_until_parameters?: true, frame_prefix: <<>>} = state
+      ) do
+    next_params_nalus =
+      NALu.parse(buffer.payload)
+      |> elem(0)
+      |> Enum.drop_while(&(not is_allowed_before_data(&1.metadata.h264.type)))
+
+    case next_params_nalus do
+      [] ->
+        {:ok, state}
+
+      [non_data_nalu | _rest] ->
+        {start, _length} = non_data_nalu.prefixed_poslen
+        <<_skipped_data::binary-size(start), data::binary>> = buffer.payload
+        buffer = %Buffer{buffer | payload: data}
+        do_process(buffer, %{state | skip_until_parameters?: false})
+    end
   end
 
   # If frame prefix has been applied, proceed to parsing the buffer
@@ -421,8 +455,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
       profile: profile
     }
   end
-
-  defguardp is_allowed_before_data(nalu) when nalu in [:sei, :pps, :sps]
 
   # Checks if the required parameter NALus (see @required_parameter_nalus) are present in-band before any video frames appear
   defp carries_parameters_in_band?(payload) do
