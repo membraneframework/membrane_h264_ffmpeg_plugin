@@ -88,7 +88,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
               ],
               skip_until_parameters?: [
                 type: :boolean,
-                default: true
+                default: true,
+                description: """
+                Determines whether to drop the stream until the first of SPS and PPS is received.
+                """
               ]
 
   @impl true
