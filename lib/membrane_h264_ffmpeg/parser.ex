@@ -90,7 +90,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 type: :boolean,
                 default: true,
                 description: """
-                Determines whether to drop the stream until the first of SPS and PPS is received.
+                Determines whether to drop the stream until the first set of SPS and PPS is received.
                 """
               ]
 
