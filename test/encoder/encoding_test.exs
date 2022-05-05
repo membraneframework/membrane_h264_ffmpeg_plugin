@@ -1,15 +1,15 @@
 defmodule DecodingTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
+
   import Membrane.Testing.Assertions
+
   alias Membrane.RawVideo
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
 
-  defp prepare_paths(filename) do
+  defp prepare_paths(filename, tmp_dir) do
     in_path = "../fixtures/reference-#{filename}.raw" |> Path.expand(__DIR__)
-    out_path = "/tmp/output-encode-#{filename}.h264"
-    File.rm(out_path)
-    on_exit(fn -> File.rm(out_path) end)
+    out_path = Path.join(tmp_dir, "output-encode-#{filename}.h264")
     {in_path, out_path}
   end
 
@@ -24,8 +24,8 @@ defmodule DecodingTest do
     })
   end
 
-  defp perform_test(filename, width, height, format \\ :I420) do
-    {in_path, out_path} = prepare_paths(filename)
+  defp perform_test(filename, tmp_dir, width, height, format \\ :I420) do
+    {in_path, out_path} = prepare_paths(filename, tmp_dir)
 
     assert {:ok, pid} = make_pipeline(in_path, out_path, width, height, format)
     assert Pipeline.play(pid) == :ok
@@ -35,16 +35,17 @@ defmodule DecodingTest do
   end
 
   describe "EncodingPipeline should" do
-    test "encode 10 720p frames" do
-      perform_test("10-720p", 1280, 720)
+    @describetag :tmp_dir
+    test "encode 10 720p frames", ctx do
+      perform_test("10-720p", ctx.tmp_dir, 1280, 720)
     end
 
-    test "encode 100 240p frames" do
-      perform_test("100-240p", 340, 240)
+    test "encode 100 240p frames", ctx do
+      perform_test("100-240p", ctx.tmp_dir, 340, 240)
     end
 
-    test "encode 20 360p frames with 422 subsampling" do
-      perform_test("20-360p-I422", 480, 360, :I422)
+    test "encode 20 360p frames with 422 subsampling", ctx do
+      perform_test("20-360p-I422", ctx.tmp_dir, 480, 360, :I422)
     end
   end
 end
