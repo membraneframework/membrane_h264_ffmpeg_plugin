@@ -47,11 +47,11 @@ defmodule DecoderTest do
     {in_path, ref_path, out_path} = prepare_paths(filename, tmp_dir)
 
     assert {:ok, pid} = make_pipeline(in_path, out_path)
-    assert Pipeline.play(pid) == :ok
+    assert_pipeline_playback_changed(pid, :prepared, :playing)
     assert_end_of_stream(pid, :sink, :input, timeout)
     assert_files_equal(out_path, ref_path)
 
-    Testing.Pipeline.stop_and_terminate(pid, blocking?: true)
+    Testing.Pipeline.terminate(pid, blocking?: true)
   end
 
   defp perform_timestamping_test(filename, tmp_dir, frame_count) do
@@ -60,7 +60,7 @@ defmodule DecoderTest do
     frame_duration = Ratio.div(Membrane.Time.second(), @framerate)
 
     assert {:ok, pid} = make_pipeline_with_test_sink(in_path)
-    assert Pipeline.play(pid) == :ok
+    assert_pipeline_playback_changed(pid, :prepared, :playing)
 
     0..(frame_count - 1)
     |> Enum.each(fn i ->
@@ -75,7 +75,7 @@ defmodule DecoderTest do
       assert expected_pts == pts
     end)
 
-    Testing.Pipeline.stop_and_terminate(pid, blocking?: true)
+    Testing.Pipeline.terminate(pid, blocking?: true)
   end
 
   describe "DecodingPipeline should" do
