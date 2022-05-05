@@ -179,11 +179,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
 
   defp parse_resolution_changes(_state, [], _res_changes, acc, _index_offset) do
-    acc
+    acc |> Enum.reverse()
   end
 
   defp parse_resolution_changes(_state, bufs, [], acc, _index_offset) do
-    acc ++ [buffer: {:output, bufs}]
+    ([buffer: {:output, bufs}] ++ acc)
+    |> Enum.reverse()
   end
 
   defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc, index_offset) do
@@ -191,19 +192,19 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {old_bufs, next_bufs} = Enum.split(bufs, updated_index)
     next_caps = mk_caps(state, meta.width, meta.height)
 
-    actions = [caps: {:output, next_caps}]
+    caps = [caps: {:output, next_caps}]
 
-    actions =
+    buffers_before_change =
       case old_bufs do
-        [] -> actions
-        _non_empty -> [{:buffer, {:output, old_bufs}} | actions]
+        [] -> []
+        _non_empty -> [buffer: {:output, old_bufs}]
       end
 
     parse_resolution_changes(
       state,
       next_bufs,
       resolution_changes,
-      acc ++ actions,
+      caps ++ buffers_before_change ++ acc,
       meta.index
     )
   end
