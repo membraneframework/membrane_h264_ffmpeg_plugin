@@ -252,7 +252,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
       Enum.concat([[state.frame_prefix || <<>>], sps, pps])
       |> Enum.join(<<0, 0, 1>>)
 
-    {:ok, %{state | frame_prefix: frame_prefix}}
+    if state.skip_until_parameters? do
+      Membrane.Logger.warn("Flag skip_until_parameters? is not compatible with H264.RemoteStream")
+    end
+
+    {:ok, %{state | frame_prefix: frame_prefix, skip_until_parameters?: false}}
   end
 
   @impl true
