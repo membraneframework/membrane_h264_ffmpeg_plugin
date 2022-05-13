@@ -16,7 +16,7 @@ Documentation is available at [HexDocs](https://hexdocs.pm/membrane_h264_ffmpeg_
 Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 ```elixir
-{:membrane_h264_ffmpeg_plugin, "~> 0.20.0"}
+{:membrane_h264_ffmpeg_plugin, "~> 0.20.1"}
 ```
 
 You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.
@@ -37,6 +37,66 @@ pacman -S ffmpeg
 
 ```bash
 brew install ffmpeg
+```
+
+## Usage Example
+
+### Decoder
+
+The following pipeline takes 30fps H264 file and decodes it to the raw video.
+
+```elixir
+defmodule Decoding.Pipeline do
+  use Membrane.Pipeline
+
+  @impl true
+  def handle_init(_) do
+    children = [
+      source: %Membrane.File.Source{chunk_size: 40_960, location: "input.h264"},
+      parser: %H264.FFmpeg.Parser{framerate: {30, 1}},
+      decoder: H264.FFmpeg.Decoder,
+      sink: %Membrane.File.Sink{location: "output.raw"}
+    ]
+
+    links = [
+      link(:source)
+      |> to(:parser)
+      |> to(:decoder)
+      |> to(:sink)
+    ]
+
+    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+  end
+end
+```
+
+### Encoder
+
+The following pipeline takes 720p raw video file as input and encodes it as H264.
+
+```elixir
+defmodule Encoding.Pipeline do
+  use Membrane.Pipeline
+
+  @impl true
+  def handle_init(_) do
+    children = [
+      source: %Membrane.File.Source{chunk_size: 40_960, location: "input.raw"},
+      parser: %Membrane.RawVideo.Parser{width: 1280, height: 720, pixel_format: :I420},
+      encoder: %Membrane.H264.FFmpeg.Encoder{preset: :fast, crf: 30},
+      sink: %Membrane.File.Sink{location: "output.h264"}
+    ]
+
+    links = [
+      link(:source)
+      |> to(:parser)
+      |> to(:encoder)
+      |> to(:sink)
+    ]
+
+    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+  end
+end
 ```
 
 ## Copyright and License

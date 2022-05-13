@@ -1,8 +1,8 @@
 defmodule Membrane.H264.FFmpeg.Parser.Test do
   use ExUnit.Case, async: true
 
-  alias Membrane.H264.FFmpeg.Parser
   alias Membrane.Buffer
+  alias Membrane.H264.FFmpeg.Parser
 
   @no_params_stream File.read!("test/fixtures/input-10-no-pps-sps.h264")
   @stream_with_params File.read!("test/fixtures/input-10-720p.h264")
