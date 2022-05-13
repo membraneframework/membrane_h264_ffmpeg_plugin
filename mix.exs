@@ -74,7 +74,11 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       formatters: ["html"],
       source_ref: "v#{@version}",
       nest_modules_by_prefix: [
-        Membrane.H264.FFmpeg
+        Membrane.H264.FFmpeg,
+        Membrane.H264.FFmpeg.Parser
+      ],
+      groups_for_modules: [
+        Parser: [~r/^Membrane\.H264\.FFmpeg\.Parser\.DecoderConfiguration$/]
       ]
     ]
   end
