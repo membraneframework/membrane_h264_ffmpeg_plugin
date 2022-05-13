@@ -1,10 +1,11 @@
 defmodule DecodingTest do
   use ExUnit.Case, async: true
+  use Membrane.Pipeline
 
   import Membrane.Testing.Assertions
 
-  alias Membrane.RawVideo
   alias Membrane.H264
+  alias Membrane.RawVideo
   alias Membrane.Testing.Pipeline
 
   defp prepare_paths(filename, tmp_dir) do
@@ -14,14 +15,24 @@ defmodule DecodingTest do
   end
 
   defp make_pipeline(in_path, out_path, width, height, format) do
-    Pipeline.start_link(%Pipeline.Options{
-      elements: [
-        file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
-        parser: %RawVideo.Parser{width: width, height: height, pixel_format: format},
-        encoder: %H264.FFmpeg.Encoder{preset: :fast, crf: 30},
-        sink: %Membrane.File.Sink{location: out_path}
+    children = [
+      file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
+      parser: %RawVideo.Parser{width: width, height: height, pixel_format: format},
+      encoder: %H264.FFmpeg.Encoder{preset: :fast, crf: 30},
+      sink: %Membrane.File.Sink{location: out_path}
+    ]
+
+    options = [
+      children: children,
+      links: [
+        link(:file_src)
+        |> to(:parser)
+        |> to(:encoder)
+        |> to(:sink)
       ]
-    })
+    ]
+
+    Pipeline.start_link(options)
   end
 
   defp perform_test(filename, tmp_dir, width, height, format \\ :I420) do

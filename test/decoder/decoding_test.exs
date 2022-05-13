@@ -1,10 +1,13 @@
 defmodule DecoderTest do
   use ExUnit.Case
+  use Membrane.Pipeline
+
   import Membrane.Testing.Assertions
+
   alias Membrane.H264
+  alias Membrane.H264.FFmpeg.Common
   alias Membrane.Testing
   alias Membrane.Testing.Pipeline
-  alias Membrane.H264.FFmpeg.Common
 
   @framerate 30
 
@@ -27,14 +30,24 @@ defmodule DecoderTest do
   end
 
   defp make_pipeline_with_test_sink(in_path) do
-    Pipeline.start_link(%Pipeline.Options{
-      elements: [
-        file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
-        parser: %H264.FFmpeg.Parser{framerate: {@framerate, 1}},
-        decoder: H264.FFmpeg.Decoder,
-        sink: Testing.Sink
+    children = [
+      file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
+      parser: %H264.FFmpeg.Parser{framerate: {@framerate, 1}},
+      decoder: H264.FFmpeg.Decoder,
+      sink: Testing.Sink
+    ]
+
+    options = [
+      children: children,
+      links: [
+        link(:file_src)
+        |> to(:parser)
+        |> to(:decoder)
+        |> to(:sink)
       ]
-    })
+    ]
+
+    Pipeline.start_link(options)
   end
 
   defp assert_files_equal(file_a, file_b) do
