@@ -15,10 +15,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
   """
   use Membrane.Filter
   use Bunch
+
+  require Membrane.Logger
+
   alias __MODULE__.{NALu, Native}
   alias Membrane.Buffer
   alias Membrane.H264
-  require Membrane.Logger
 
   @required_parameter_nalus [:pps, :sps]
 

@@ -7,13 +7,14 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   decoder (e.g. when input is read from `Membrane.File.Source`).
   """
   use Membrane.Filter
+
+  require Membrane.Logger
+
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.H264
   alias Membrane.H264.FFmpeg.Common
   alias Membrane.RawVideo
-
-  require Membrane.Logger
 
   @no_pts -9_223_372_036_854_775_808
 
