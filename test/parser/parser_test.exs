@@ -55,6 +55,15 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
     assert [caps: {:output, _format}, buffer: {:output, buffers}] = actions
     assert length(buffers) > 0
 
+    {:output, buffers} = actions[:buffer]
+
+    binaries =
+      buffers
+      |> Enum.map(fn buffer -> buffer.payload end)
+      |> IO.iodata_to_binary()
+
+    File.write("output.h264", binaries)
+
     for buffer <- buffers do
       assert %Buffer{} = buffer
     end

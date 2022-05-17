@@ -160,14 +160,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
   # If frame prefix has been applied, proceed to parsing the buffer
   @impl true
   def handle_process(:input, buffer, _ctx, %{frame_prefix: <<>>} = state) do
-    IO.inspect("no_frame_prefix", label: :buffer)
     do_process(buffer, state)
   end
 
   # If there is a frame prefix to be applied, check that there are no in-band parameters and write the prefix if necessary
   @impl true
   def handle_process(:input, %Buffer{} = buffer, _ctx, state) when state.frame_prefix != <<>> do
-    IO.inspect("frame_prefix", label: :buffer)
     payload = state.partial_frame <> buffer.payload
 
     case carries_parameters_in_band?(payload) do
