@@ -9,11 +9,17 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
 
   @input_caps %Membrane.H264.RemoteStream{
     decoder_configuration_record:
-      <<1, 2, 131, 242, 255, 225, 0, 8, 103, 66, 0, 13, 233, 2, 131, 242, 1, 0, 5, 104, 206, 1,
-        15, 32>>,
+      <<1, 2, 131, 242, 255, 225, 0, 28, 103, 100, 0, 31, 172, 217, 64, 80, 5, 187, 1, 106, 2, 2, 2, 128,
+      0, 0, 3, 0, 128, 0, 0, 30,  71, 140, 24, 203,
+
+      1, 0, 5, 104, 235, 236, 178, 44>>,
     stream_format: :byte_stream
   }
-  @expected_prefix <<0, 0, 1, 103, 66, 0, 13, 233, 2, 131, 242, 0, 0, 1, 104, 206, 1, 15, 32>>
+  @expected_prefix <<0, 0, 1, 103, 100, 0, 31, 172, 217, 64, 80, 5, 187, 1, 106, 2, 2, 2, 128,
+  0, 0, 3, 0, 128, 0, 0, 30,  71, 140, 24, 203,
+
+
+  0, 0, 1, 104, 235, 236, 178, 44>>
 
   describe "Check if H264.RemoteStream caps" do
     test "are parsed correctly" do
@@ -49,20 +55,12 @@ defmodule Membrane.H264.FFmpeg.Parser.Test do
     assert {:ok, new_state} =
              Parser.handle_process(:input, %Buffer{payload: payload1}, nil, state)
 
+
     assert {{:ok, actions}, %{frame_prefix: <<>>}} =
-             Parser.handle_process(:input, %Buffer{payload: payload2}, nil, new_state)
+      Parser.handle_process(:input, %Buffer{payload: payload2}, nil, new_state)
 
     assert [caps: {:output, _format}, buffer: {:output, buffers}] = actions
     assert length(buffers) > 0
-
-    {:output, buffers} = actions[:buffer]
-
-    binaries =
-      buffers
-      |> Enum.map(fn buffer -> buffer.payload end)
-      |> IO.iodata_to_binary()
-
-    File.write("output.h264", binaries)
 
     for buffer <- buffers do
       assert %Buffer{} = buffer
