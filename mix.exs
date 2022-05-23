@@ -39,9 +39,9 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   defp deps do
     [
       {:bunch, "~> 1.3.0"},
-      {:unifex, "~> 0.7.2"},
+      {:unifex, "~> 1.0"},
       {:membrane_core, "~> 0.10.0"},
-      {:membrane_common_c, "~> 0.12.0"},
+      {:membrane_common_c, "~> 0.13.0"},
       {:membrane_h264_format, "~> 0.3.0"},
       {:membrane_raw_video_format, "~> 0.2.0"},
       {:ratio, "~> 2.4.0"},
