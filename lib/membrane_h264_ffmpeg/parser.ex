@@ -251,6 +251,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     frame_prefix =
       Enum.concat([[state.frame_prefix || <<>>], sps, pps])
       |> Enum.join(<<0, 0, 1>>)
+
     if state.skip_until_parameters? do
       Membrane.Logger.warn("""
       Flag skip_until_parameters? is not compatible with Membrane.H264.RemoteStream caps.
