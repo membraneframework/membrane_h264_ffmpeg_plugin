@@ -29,7 +29,7 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
     play_and_validate(pipeline, reference_file, output_file)
   end
 
-  test "if it will turn off the skip_unit_parameters? option if the RemoteStream caps are provided" do
+  test "if it will turn off the skip_until_parameters? option if the RemoteStream caps are provided" do
     input_chunks = Bunch.Binary.chunk_every(@no_params_stream, 1024)
     output_file = Path.join(@tmp_dir, "output2.h264")
     reference_file = Path.join(@fixtures_dir, "reference-10-720p-no-pps-sps.h264")
