@@ -17,7 +17,6 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
     stream_format: :byte_stream
   }
 
-
   setup_all do
     File.mkdir_p!(Path.dirname(@tmp_dir))
   end
