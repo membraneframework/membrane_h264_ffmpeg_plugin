@@ -7,7 +7,7 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
   alias Membrane.Testing
 
   @fixtures_dir "./test/fixtures/"
-  @tmp_dir "./tmp/"
+  @tmp_dir "./tmp/ParserTest/"
   @no_params_stream File.read!("test/fixtures/input-10-no-pps-sps.h264")
   @stream_with_params File.read!("test/fixtures/input-10-720p.h264")
   @input_caps %Membrane.H264.RemoteStream{
@@ -16,6 +16,11 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
         2, 128, 0, 0, 3, 0, 128, 0, 0, 30, 71, 140, 24, 203, 1, 0, 5, 104, 235, 236, 178, 44>>,
     stream_format: :byte_stream
   }
+
+
+  setup_all do
+    File.mkdir_p!(Path.dirname(@tmp_dir))
+  end
 
   test "if it won't add parameters at the beggining if they are present in the input file" do
     {input_chunks, rem_chunk} = Bunch.Binary.chunk_every_rem(@stream_with_params, 1024)
