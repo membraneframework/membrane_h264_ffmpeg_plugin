@@ -31,11 +31,14 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
               end)
               |> Map.new()
 
-  @spec parse(binary) :: {list, %{h264: any}}
-  def parse(access_unit) do
+  @type parse_option_t() :: {:discard_partial_nalu?, boolean()}
+  @type parse_options_t() :: list(parse_option_t())
+
+  @spec parse(binary, parse_options_t()) :: {list, %{h264: any}}
+  def parse(access_unit, options \\ []) do
     {nalus, au_info} =
       access_unit
-      |> extract_nalus()
+      |> extract_nalus(options)
       |> Enum.map_reduce(%{key_frame?: false}, &parse_nalu(&1, &2, access_unit))
 
     nalus =
@@ -46,10 +49,17 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
     {nalus, %{h264: au_info}}
   end
 
-  defp extract_nalus(access_unit) do
+  defp extract_nalus(access_unit, options) do
     access_unit
     |> :binary.matches([<<0, 0, 0, 1>>, <<0, 0, 1>>])
-    |> Enum.chunk_every(2, 1, [{byte_size(access_unit), nil}])
+    |> Enum.chunk_every(
+      2,
+      1,
+      if(Keyword.get(options, :discard_partial_nalu?, false),
+        do: :discard,
+        else: [{byte_size(access_unit), nil}]
+      )
+    )
     |> Enum.map(fn [{from, prefix_len}, {to, _}] ->
       len = to - from
       %{prefixed_poslen: {from, len}, unprefixed_poslen: {from + prefix_len, len - prefix_len}}

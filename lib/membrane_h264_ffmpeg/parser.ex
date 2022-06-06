@@ -143,7 +143,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
         %{skip_until_parameters?: true, frame_prefix: <<>>} = state
       ) do
     next_params_nalus =
-      NALu.parse(buffer.payload)
+      buffer.payload
+      |> NALu.parse(discard_partial_nalu?: true)
       |> elem(0)
       |> Enum.drop_while(&(not is_allowed_before_data(&1.metadata.h264.type)))
 
@@ -468,7 +469,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
   # Checks if the required parameter NALus (see @required_parameter_nalus) are present in-band before any video frames appear
   defp carries_parameters_in_band?(payload) do
     types =
-      NALu.parse(payload)
+      payload
+      |> NALu.parse(discard_partial_nalu?: true)
       |> elem(0)
       |> Enum.map(& &1.metadata.h264.type)
 
