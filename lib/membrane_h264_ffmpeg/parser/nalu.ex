@@ -31,6 +31,12 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
               end)
               |> Map.new()
 
+  @typedoc """
+  Type describing options passable to `parse/2` function.
+
+  - discard_partial_nalu? - if enabled, the last NALU will be discarded, unless the delimiter (001 or 0001) sequence is present at the end.
+  Otherwise, the parser will attempt to parse all NALUs
+  """
   @type parse_option_t() :: {:discard_partial_nalu?, boolean()}
   @type parse_options_t() :: list(parse_option_t())
 
