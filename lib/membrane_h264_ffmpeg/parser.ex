@@ -100,6 +100,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   @impl true
   def handle_init(opts) do
     state = %{
+      pending_caps: nil,
       parser_ref: nil,
       partial_frame: <<>>,
       frame_prefix: opts.sps <> opts.pps,
@@ -204,7 +205,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
             state
           )
 
-        actions = parse_resolution_changes(state, bufs, resolution_changes)
+        {actions, state} = parse_resolution_changes(state, bufs, resolution_changes)
         {{:ok, actions}, state}
 
       {:error, reason} ->
@@ -215,13 +216,40 @@ defmodule Membrane.H264.FFmpeg.Parser do
   # analize resolution changes and generate appropriate caps before corresponding buffers
   defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
 
-  defp parse_resolution_changes(_state, [], _res_changes, acc, _index_offset) do
-    acc |> Enum.reverse()
+  defp parse_resolution_changes(state, [], [], [], _index_offset) do
+    {[], state}
   end
 
-  defp parse_resolution_changes(_state, bufs, [], acc, _index_offset) do
-    ([buffer: {:output, bufs}] ++ acc)
-    |> Enum.reverse()
+  defp parse_resolution_changes(state, bufs, [], [], _index_offset) do
+    # When this is the first call to parse_resolution_changes
+    # with bufs but without resolution changes,
+    # check whether we have pending caps and if yes, send them with buffers
+    caps =
+      if state.pending_caps != nil do
+        [caps: {:output, state.pending_caps}]
+      else
+        []
+      end
+
+    actions = caps ++ [buffer: {:output, bufs}]
+    {actions, %{state | pending_caps: nil}}
+  end
+
+  defp parse_resolution_changes(state, bufs, [], acc, _index_offset) do
+    actions =
+      ([buffer: {:output, bufs}] ++ acc)
+      |> Enum.reverse()
+
+    {actions, state}
+  end
+
+  defp parse_resolution_changes(state, [], res_changes, [], _index_offset) do
+    # When this is the first call to parse_resolution_changes
+    # with some resolution changes but without bufs (e.g. because of waiting for a keyframe),
+    # cache new caps as pending. We will send them when new buffers appear
+    meta = List.last(res_changes)
+    caps = mk_caps(state, meta.width, meta.height)
+    {[], %{state | pending_caps: caps}}
   end
 
   defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc, index_offset) do
@@ -237,11 +265,18 @@ defmodule Membrane.H264.FFmpeg.Parser do
         _non_empty -> [buffer: {:output, old_bufs}]
       end
 
+    pending_caps =
+      if state.pending_caps != nil and buffers_before_change != [] do
+        [caps: {:output, state.pending_caps}]
+      else
+        []
+      end
+
     parse_resolution_changes(
-      state,
+      %{state | pending_caps: nil},
       next_bufs,
       resolution_changes,
-      caps ++ buffers_before_change ++ acc,
+      caps ++ buffers_before_change ++ pending_caps ++ acc,
       meta.index
     )
   end
