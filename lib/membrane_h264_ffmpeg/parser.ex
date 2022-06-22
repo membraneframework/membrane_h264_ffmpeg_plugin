@@ -137,27 +137,15 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_process(
-        :input,
-        buffer,
-        _ctx,
-        %{skip_until_parameters?: true, frame_prefix: <<>>} = state
-      ) do
-    next_params_nalus =
-      buffer.payload
-      |> NALu.parse(discard_partial_nalu?: true)
-      |> elem(0)
-      |> Enum.drop_while(&(not is_allowed_before_data(&1.metadata.h264.type)))
-
-    case next_params_nalus do
-      [] ->
+  def handle_process(:input, buffer, _ctx, %{skip_until_parameters?: true} = state) do
+    buffer.payload
+    |> skip_until_pps_or_sps()
+    |> case do
+      <<>> ->
         {:ok, state}
 
-      [non_data_nalu | _rest] ->
-        {start, _length} = non_data_nalu.prefixed_poslen
-        <<_skipped_data::binary-size(start), data::binary>> = buffer.payload
-        buffer = %Buffer{buffer | payload: data}
-        do_process(buffer, %{state | skip_until_parameters?: false})
+      payload ->
+        do_process(%{buffer | payload: payload}, %{state | skip_until_parameters?: false})
     end
   end
 
@@ -532,4 +520,15 @@ defmodule Membrane.H264.FFmpeg.Parser do
         {:ok, false}
     end
   end
+
+  defp skip_until_pps_or_sps(<<>>), do: <<>>
+
+  defp skip_until_pps_or_sps(
+         <<0, 0, 1, 0::1, _nal_ref_idc::2, nal_unit_type::5, _rest::binary>> = payload
+       )
+       when nal_unit_type in [7, 8],
+       do: payload
+
+  defp skip_until_pps_or_sps(<<_first::binary-size(1), rest::binary>>),
+    do: skip_until_pps_or_sps(rest)
 end
