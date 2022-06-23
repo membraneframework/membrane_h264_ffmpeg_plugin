@@ -31,16 +31,7 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
               end)
               |> Map.new()
 
-  @typedoc """
-  Type describing options that can be passed to `parse/2` function.
-
-  - discard_partial_nalu? - if enabled, the last NALU will be discarded, unless the delimiter (001 or 0001) sequence is present at the end.
-  Otherwise, the parser will attempt to parse all NALUs
-  """
-  @type parse_option_t() :: {:discard_partial_nalu?, boolean()}
-  @type parse_options_t() :: list(parse_option_t())
-
-  @spec parse(binary, parse_options_t()) :: {list, %{h264: any}}
+  @spec parse(binary, keyword()) :: {list, %{h264: any}, binary}
   def parse(access_unit, options \\ []) do
     {nalus, au_info} =
       access_unit
@@ -52,20 +43,23 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
       |> List.update_at(0, &put_in(&1, [:metadata, :h264, :new_access_unit], au_info))
       |> List.update_at(-1, &put_in(&1, [:metadata, :h264, :end_access_unit], true))
 
-    {nalus, %{h264: au_info}}
+    length_of_parsed_data =
+      List.last(nalus, %{prefixed_poslen: {0, 0}}).prefixed_poslen
+      |> then(fn {pos, len} -> pos + len end)
+
+    <<_parsed::binary-size(length_of_parsed_data), unparsed::binary>> = access_unit
+
+    {nalus, %{h264: au_info}, unparsed}
   end
 
   defp extract_nalus(access_unit, options) do
+    if Keyword.get(options, :complete_nalu?, false),
+      do: access_unit <> <<0, 0, 1>>,
+      else: access_unit
+
     access_unit
     |> :binary.matches([<<0, 0, 0, 1>>, <<0, 0, 1>>])
-    |> Enum.chunk_every(
-      2,
-      1,
-      if(Keyword.get(options, :discard_partial_nalu?, false),
-        do: :discard,
-        else: [{byte_size(access_unit), nil}]
-      )
-    )
+    |> Enum.chunk_every(2, 1, :discard)
     |> Enum.map(fn [{from, prefix_len}, {to, _}] ->
       len = to - from
       %{prefixed_poslen: {from, len}, unprefixed_poslen: {from + prefix_len, len - prefix_len}}
