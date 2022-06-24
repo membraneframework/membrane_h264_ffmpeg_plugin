@@ -218,7 +218,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     end
   end
 
-  # analize resolution changes and generate appropriate caps before corresponding buffers
+  # analyze resolution changes and generate appropriate caps before corresponding buffers
   defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
 
   defp parse_resolution_changes(state, [], [], [], _index_offset) do

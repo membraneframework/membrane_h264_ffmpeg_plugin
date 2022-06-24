@@ -31,7 +31,15 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
               end)
               |> Map.new()
 
-  @spec parse(binary, keyword()) :: {list, %{h264: any}, binary}
+  @typedoc """
+  Type representing a single option that can be passed to `parse/2` function call
+
+  - `complete_nalu?` - determines if the last NALu in the binary will be considered complete despite lacking the delimiter marking the end of it.
+  """
+  @type parse_option_t() :: {:complete_nalu?, boolean()}
+  @type parse_options_t() :: [parse_option_t()]
+
+  @spec parse(binary, parse_options_t()) :: {list, %{h264: any}, binary}
   def parse(access_unit, options \\ []) do
     {nalus, au_info} =
       access_unit
