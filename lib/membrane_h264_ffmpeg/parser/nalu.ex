@@ -53,9 +53,10 @@ defmodule Membrane.H264.FFmpeg.Parser.NALu do
   end
 
   defp extract_nalus(access_unit, options) do
-    if Keyword.get(options, :complete_nalu?, false),
-      do: access_unit <> <<0, 0, 1>>,
-      else: access_unit
+    access_unit =
+      if Keyword.get(options, :complete_nalu?, false),
+        do: access_unit <> <<0, 0, 1>>,
+        else: access_unit
 
     access_unit
     |> :binary.matches([<<0, 0, 0, 1>>, <<0, 0, 1>>])
