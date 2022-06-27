@@ -109,7 +109,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
       attach_nalus?: opts.attach_nalus?,
       skip_until_keyframe?: opts.skip_until_keyframe?,
       skip_until_parameters?: opts.skip_until_parameters?,
-      metadata: nil
+      metadata: nil,
+      acc: <<>>
     }
 
     {:ok, state}
@@ -143,21 +144,25 @@ defmodule Membrane.H264.FFmpeg.Parser do
         _ctx,
         %{skip_until_parameters?: true, frame_prefix: <<>>} = state
       ) do
-    next_params_nalus =
-      buffer.payload
-      |> NALu.parse(discard_partial_nalu?: true)
-      |> elem(0)
-      |> Enum.drop_while(&(not is_allowed_before_data(&1.metadata.h264.type)))
+    data = state.acc <> buffer.payload
 
-    case next_params_nalus do
-      [] ->
-        {:ok, state}
+    {parsed, _au_info, unparsed} = NALu.parse(data)
 
-      [non_data_nalu | _rest] ->
-        {start, _length} = non_data_nalu.prefixed_poslen
-        <<_skipped_data::binary-size(start), data::binary>> = buffer.payload
-        buffer = %Buffer{buffer | payload: data}
-        do_process(buffer, %{state | skip_until_parameters?: false})
+    case find_parameters(parsed) do
+      {:error, :not_enough_buffers} ->
+        {:ok, %{state | acc: data}}
+
+      {:ok, buffers} ->
+        contents =
+          Enum.map_join(buffers, fn %{prefixed_poslen: {pos, len}} ->
+            <<_prefix::binary-size(pos), nalu::binary-size(len), _rest::binary>> = data
+            nalu
+          end)
+
+        do_process(%{buffer | payload: contents <> unparsed}, %{
+          state
+          | skip_until_parameters?: false
+        })
     end
   end
 
@@ -213,7 +218,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     end
   end
 
-  # analize resolution changes and generate appropriate caps before corresponding buffers
+  # analyze resolution changes and generate appropriate caps before corresponding buffers
   defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
 
   defp parse_resolution_changes(state, [], [], [], _index_offset) do
@@ -443,7 +448,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         framerate: nil -> {metadata.pts, metadata.dts}
       end
 
-    {nalus, au_metadata} = NALu.parse(au)
+    {nalus, au_metadata, _unparsed} = NALu.parse(au, complete_nalu?: true)
     au_metadata = Map.merge(metadata.buffer_metadata, au_metadata)
     state = Map.update!(state, :skip_until_keyframe?, &(&1 and not au_metadata.h264.key_frame?))
 
@@ -505,7 +510,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp carries_parameters_in_band?(payload) do
     types =
       payload
-      |> NALu.parse(discard_partial_nalu?: true)
+      |> NALu.parse()
       |> elem(0)
       |> Enum.map(& &1.metadata.h264.type)
 
@@ -530,6 +535,30 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
       true ->
         {:ok, false}
+    end
+  end
+
+  defp find_parameters(data, looking_for \\ [:sps, :pps])
+
+  defp find_parameters(data, []) do
+    {:ok, data}
+  end
+
+  defp find_parameters([], _looking_for), do: {:error, :not_enough_buffers}
+
+  defp find_parameters(data, looking_for) do
+    {before_buffers, after_buffers} =
+      Enum.split_while(data, &(not Enum.member?(looking_for, &1.metadata.h264.type)))
+
+    before_buffers =
+      Enum.reject(before_buffers, &Enum.member?([:idr, :non_idr], &1.metadata.h264.type))
+
+    with [%{metadata: %{h264: %{type: type}}} | _rest] <- after_buffers,
+         {:ok, after_buffers} <- find_parameters(after_buffers, looking_for -- [type]) do
+      {:ok, before_buffers ++ after_buffers}
+    else
+      [] -> {:error, :not_enough_buffers}
+      error -> error
     end
   end
 end
