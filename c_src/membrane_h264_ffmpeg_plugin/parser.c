@@ -203,21 +203,29 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   int ret;
   uint8_t *data_ptr;
   unsigned out_frame_size;
+  resolution res =
+      {state->parser_ctx->width, state->parser_ctx->height, 0};
+
   ret = av_parser_parse2(state->parser_ctx, state->codec_ctx, &data_ptr,
                          (int *)&out_frame_size, NULL, 0, AV_NOPTS_VALUE,
                          AV_NOPTS_VALUE, 0);
-
   if (ret < 0) {
     return parse_result_error(env, "parsing");
   }
 
   if (out_frame_size == 0) {
-    return flush_result_ok(env, NULL, 0, NULL, 0, NULL, 0);
+    return flush_result_ok(env, NULL, 0, NULL, 0, NULL, 0, res);
   }
 
   // "Note 2: the JM reference encoder increments POC by 2 for every complete frame." 
   // from https://www.vcodex.com/h264avc-picture-management/ 
   int presentation_order_number = state->parser_ctx->output_picture_number / 2;
   int decoding_order_number = state->last_frame_number + 1;
-  return flush_result_ok(env, &out_frame_size, 1,  &decoding_order_number, 1, &presentation_order_number, 1);
+
+  if(resolution_changed(res, state)) {
+    res.width = state->parser_ctx->width;
+    res.height = state->parser_ctx->height;
+  }
+
+  return flush_result_ok(env, &out_frame_size, 1,  &decoding_order_number, 1, &presentation_order_number, 1, res);
 }

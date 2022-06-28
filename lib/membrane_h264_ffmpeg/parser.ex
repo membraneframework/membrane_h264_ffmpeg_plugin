@@ -317,8 +317,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers} <-
+  def handle_end_of_stream(:input, ctx, state) do
+    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution} <-
            Native.flush(state.parser_ref) do
       {bufs, state} =
         parse_access_units(
@@ -334,8 +334,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
       end
 
+      caps = mk_caps(state, resolution.width, resolution.height)
+      caps_actions = if caps != ctx.pads.output.caps, do: [caps: {:output, caps}], else: []
+
       bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
-      actions = [buffer: {:output, bufs}, end_of_stream: :output]
+      actions = caps_actions ++ [buffer: {:output, bufs}, end_of_stream: :output]
       {{:ok, actions}, state}
     end
   end
