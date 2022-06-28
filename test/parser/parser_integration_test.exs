@@ -23,9 +23,9 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
   end
 
   test "if it won't crash when parameters change before I-frame" do
-    output_file = Path.join(@tmp_dir, "output1.h264")
-    reference_file = Path.join(@fixtures_dir, "3.h264")
-    input_chunks = [@stream_with_params_change]
+    input_chunks =
+      Bunch.Binary.chunk_every_rem(@stream_with_params_change, 1024)
+      |> then(fn {a, b} -> a ++ [b] end)
 
     {:ok, pipeline} =
       [
@@ -34,13 +34,15 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
         },
         parser: %Membrane.H264.FFmpeg.Parser{
           skip_until_parameters?: false,
-          skip_until_keyframe?: true
+          skip_until_keyframe?: true,
+          alignment: :nal
         },
         sink: Membrane.Testing.Sink
       ]
       |> then(&Testing.Pipeline.start_link(links: Membrane.ParentSpec.link_linear(&1)))
 
     assert_sink_caps(pipeline, :sink, _caps)
+    assert_sink_buffer(pipeline, :sink, _buffer)
     assert_end_of_stream(pipeline, :sink)
 
     Testing.Pipeline.terminate(pipeline, blocking?: true)
