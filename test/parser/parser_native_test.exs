@@ -12,7 +12,7 @@ defmodule Parser.NativeTest do
     assert {:ok, _frames, _decoding_order_numbers, _presentation_order_numbers, _changes} =
              Parser.parse(frame, decoder_ref)
 
-    assert {:ok, [7469], _decoding_order_numbers, _presentation_order_numbers} =
-             Parser.flush(decoder_ref)
+    assert {:ok, [7469], _decoding_order_numbers, _presentation_order_numbers,
+            %{height: 240, width: 320}} = Parser.flush(decoder_ref)
   end
 end

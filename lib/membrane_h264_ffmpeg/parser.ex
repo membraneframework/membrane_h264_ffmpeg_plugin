@@ -203,7 +203,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         {bufs, state} =
           parse_access_units(
             payload,
-            sizes,
+            Enum.with_index(sizes),
             metadata,
             decoding_order_numbers,
             presentation_order_numbers,
@@ -219,16 +219,15 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   # analyze resolution changes and generate appropriate caps before corresponding buffers
-  defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [], index_offset \\ 0)
+  defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [])
 
-  defp parse_resolution_changes(state, [], [], [], _index_offset) do
+  defp parse_resolution_changes(state, [], [], []) do
     {[], state}
   end
 
-  defp parse_resolution_changes(state, bufs, [], [], _index_offset) do
-    # When this is the first call to parse_resolution_changes
-    # with bufs but without resolution changes,
-    # check whether we have pending caps and if yes, send them with buffers
+  defp parse_resolution_changes(state, bufs, [], acc) do
+    bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
+
     caps =
       if state.pending_caps != nil do
         [caps: {:output, state.pending_caps}]
@@ -236,53 +235,42 @@ defmodule Membrane.H264.FFmpeg.Parser do
         []
       end
 
-    actions = caps ++ [buffer: {:output, bufs}]
+    actions = Enum.reverse([buffer: {:output, bufs}] ++ caps ++ acc)
+
     {actions, %{state | pending_caps: nil}}
   end
 
-  defp parse_resolution_changes(state, bufs, [], acc, _index_offset) do
-    actions =
-      ([buffer: {:output, bufs}] ++ acc)
-      |> Enum.reverse()
-
-    {actions, state}
-  end
-
-  defp parse_resolution_changes(state, [], res_changes, [], _index_offset) do
-    # When this is the first call to parse_resolution_changes
-    # with some resolution changes but without bufs (e.g. because of waiting for a keyframe),
-    # cache new caps as pending. We will send them when new buffers appear
-    meta = List.last(res_changes)
-    caps = mk_caps(state, meta.width, meta.height)
-    {[], %{state | pending_caps: caps}}
-  end
-
-  defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc, index_offset) do
-    updated_index = meta.index - index_offset
-    {old_bufs, next_bufs} = Enum.split(bufs, updated_index)
+  defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc) do
+    {old_bufs, next_bufs} = Enum.split_while(bufs, fn {au, _buf} -> au < meta.index end)
     next_caps = mk_caps(state, meta.width, meta.height)
 
-    caps = [caps: {:output, next_caps}]
+    {caps, state} =
+      if old_bufs == [],
+        do: {[], %{state | pending_caps: next_caps}},
+        else: {[caps: {:output, next_caps}], state}
 
     buffers_before_change =
       case old_bufs do
-        [] -> []
-        _non_empty -> [buffer: {:output, old_bufs}]
+        [] ->
+          []
+
+        _non_empty ->
+          old_bufs = Enum.map(old_bufs, fn {_au, buf} -> buf end)
+          [buffer: {:output, old_bufs}]
       end
 
-    pending_caps =
+    {pending_caps, state} =
       if state.pending_caps != nil and buffers_before_change != [] do
-        [caps: {:output, state.pending_caps}]
+        {[caps: {:output, state.pending_caps}], %{state | pending_caps: nil}}
       else
-        []
+        {[], state}
       end
 
     parse_resolution_changes(
-      %{state | pending_caps: nil},
+      state,
       next_bufs,
       resolution_changes,
-      caps ++ buffers_before_change ++ pending_caps ++ acc,
-      meta.index
+      caps ++ buffers_before_change ++ pending_caps ++ acc
     )
   end
 
@@ -312,13 +300,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_end_of_stream(:input, _ctx, state) do
-    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers} <-
+  def handle_end_of_stream(:input, ctx, state) do
+    with {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution} <-
            Native.flush(state.parser_ref) do
       {bufs, state} =
         parse_access_units(
           <<>>,
-          sizes,
+          Enum.with_index(sizes),
           state.metadata,
           decoding_order_numbers,
           presentation_order_numbers,
@@ -329,7 +317,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
       end
 
-      actions = [buffer: {:output, bufs}, end_of_stream: :output]
+      caps = mk_caps(state, resolution.width, resolution.height)
+      caps_actions = if caps != ctx.pads.output.caps, do: [caps: {:output, caps}], else: []
+
+      bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
+      actions = caps_actions ++ [buffer: {:output, bufs}, end_of_stream: :output]
       {{:ok, actions}, state}
     end
   end
@@ -423,7 +415,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   defp do_parse_access_units(
          input,
-         [au_size | au_sizes],
+         [{au_size, au_number} | au_sizes],
          metadata,
          [decoding_order_number | decoding_order_numbers],
          [presentation_order_number | presentation_order_numbers],
@@ -459,25 +451,27 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
         %{alignment: :au, attach_nalus?: true} ->
           [
-            %Buffer{
-              pts: pts,
-              dts: dts,
-              payload: au,
-              metadata: put_in(au_metadata, [:h264, :nalus], nalus)
-            }
+            {au_number,
+             %Buffer{
+               pts: pts,
+               dts: dts,
+               payload: au,
+               metadata: put_in(au_metadata, [:h264, :nalus], nalus)
+             }}
           ]
 
         %{alignment: :au, attach_nalus?: false} ->
-          [%Buffer{pts: pts, dts: dts, payload: au, metadata: au_metadata}]
+          [{au_number, %Buffer{pts: pts, dts: dts, payload: au, metadata: au_metadata}}]
 
         %{alignment: :nal} ->
           Enum.map(nalus, fn nalu ->
-            %Buffer{
-              pts: pts,
-              dts: dts,
-              payload: :binary.part(au, nalu.prefixed_poslen),
-              metadata: Map.merge(metadata.buffer_metadata, nalu.metadata)
-            }
+            {au_number,
+             %Buffer{
+               pts: pts,
+               dts: dts,
+               payload: :binary.part(au, nalu.prefixed_poslen),
+               metadata: Map.merge(metadata.buffer_metadata, nalu.metadata)
+             }}
           end)
       end
 

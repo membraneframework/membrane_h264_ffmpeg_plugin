@@ -10,6 +10,7 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
   @tmp_dir "./tmp/ParserTest/"
   @no_params_stream File.read!("test/fixtures/input-10-no-pps-sps.h264")
   @stream_with_params File.read!("test/fixtures/input-10-720p.h264")
+  @stream_with_params_change File.read!("test/fixtures/input-sps-pps-non-idr-sps-pps-idr.h264")
   @input_caps %Membrane.H264.RemoteStream{
     decoder_configuration_record:
       <<1, 2, 131, 242, 255, 225, 0, 28, 103, 100, 0, 31, 172, 217, 64, 80, 5, 187, 1, 106, 2, 2,
@@ -21,7 +22,34 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
     File.mkdir_p!(Path.dirname(@tmp_dir))
   end
 
-  test "if it won't add parameters at the beggining if they are present in the input file" do
+  test "if it won't crash when parameters change before I-frame" do
+    input_chunks =
+      Bunch.Binary.chunk_every_rem(@stream_with_params_change, 1024)
+      |> then(fn {a, b} -> a ++ [b] end)
+
+    {:ok, pipeline} =
+      [
+        source: %Testing.Source{
+          output: input_chunks
+        },
+        parser: %Membrane.H264.FFmpeg.Parser{
+          skip_until_parameters?: false,
+          skip_until_keyframe?: true,
+          alignment: :nal
+        },
+        sink: Membrane.Testing.Sink
+      ]
+      |> then(&Testing.Pipeline.start_link(links: Membrane.ParentSpec.link_linear(&1)))
+
+    assert_sink_caps(pipeline, :sink, _caps)
+    assert_sink_buffer(pipeline, :sink, _buffer)
+    assert_end_of_stream(pipeline, :sink)
+
+    Testing.Pipeline.terminate(pipeline, blocking?: true)
+    assert_pipeline_playback_changed(pipeline, :prepared, :stopped)
+  end
+
+  test "if it won't add parameters at the beginning if they are present in the input file" do
     {input_chunks, rem_chunk} = Bunch.Binary.chunk_every_rem(@stream_with_params, 1024)
     output_file = Path.join(@tmp_dir, "output1.h264")
     reference_file = Path.join(@fixtures_dir, "input-10-720p.h264")
