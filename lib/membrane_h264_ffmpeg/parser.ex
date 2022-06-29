@@ -235,9 +235,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         []
       end
 
-    actions =
-      ([buffer: {:output, bufs}] ++ caps ++ acc)
-      |> Enum.reverse()
+    actions = Enum.reverse([buffer: {:output, bufs}] ++ caps ++ acc)
 
     {actions, %{state | pending_caps: nil}}
   end
