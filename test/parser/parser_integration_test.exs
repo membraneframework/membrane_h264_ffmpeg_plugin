@@ -10,7 +10,7 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
   @tmp_dir "./tmp/ParserTest/"
   @no_params_stream File.read!("test/fixtures/input-10-no-pps-sps.h264")
   @stream_with_params File.read!("test/fixtures/input-10-720p.h264")
-  @stream_with_params_change File.read!("test/fixtures/3.h264")
+  @stream_with_params_change File.read!("test/fixtures/input-sps-pps-non-idr-sps-pps-idr.h264")
   @input_caps %Membrane.H264.RemoteStream{
     decoder_configuration_record:
       <<1, 2, 131, 242, 255, 225, 0, 28, 103, 100, 0, 31, 172, 217, 64, 80, 5, 187, 1, 106, 2, 2,
