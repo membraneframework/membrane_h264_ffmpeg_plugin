@@ -14,9 +14,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
   and `attach_nalus?` options for details.
 
   This Parser is also capable of handling out-of-band parameters in the form of Decoder Configuration Record.
-  To inject it, simply send `t:Membrane.H264.RemoteStream` caps containing to this element.
+  To inject it, simply send `t:Membrane.H264.RemoteStream.t/0` caps containing to this element.
   There are however some limitations:
-  - `t:Membrane.H264.RemoteStream` caps need to be send only before the first buffer.
+  - `t:Membrane.H264.RemoteStream.t/0` caps need to be send only before the first buffer.
     Sending them during the stream will cause an error
   - SPS and PPS will be extracted from Decoder Configuration Record and added to the payload of the very first buffer without any checks of in-band parameters.
     This might result in duplicated SPS and PPS. It shouldn't be a problem, unless you send an incorrect Decoder Configuration Record that doesn't match the stream.
@@ -44,7 +44,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 spec: H264.framerate_t() | nil,
                 default: nil,
                 description: """
-                Framerate of video stream, see `t:Membrane.Caps.Video.H264.framerate_t/0`
+                Framerate of video stream, see `t:Membrane.H264.framerate_t/0`
                 """
               ],
               sps: [
@@ -68,7 +68,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 spec: :au | :nal,
                 default: :au,
                 description: """
-                Stream units carried by each output buffer. See `t:Membrane.Caps.Video.H264.alignment_t`.
+                Stream units carried by each output buffer. See `t:Membrane.H264.alignment_t/0`.
 
                 If alignment is `:nal`, the following metadata entries are added:
                 - `type` - h264 nalu type
@@ -83,7 +83,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 default: false,
                 description: """
                 Determines whether to attach NAL units list to the metadata when `alignment` option
-                is set to `:au`. For details see `t:Membrane.Caps.Video.H264.nalu_in_metadata_t/0`.
+                is set to `:au`. For details see `t:Membrane.H264.nalu_in_metadata_t/0`.
                 """
               ],
               skip_until_keyframe?: [
