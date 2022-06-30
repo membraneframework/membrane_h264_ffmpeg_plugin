@@ -22,10 +22,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
   alias Membrane.Buffer
   alias Membrane.H264
 
-  @required_parameter_nalus [:pps, :sps]
-
-  defguardp is_allowed_before_data(nalu) when nalu in [:aud, :sei, :pps, :sps]
-
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
@@ -175,24 +171,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
   # If there is a frame prefix to be applied, check that there are no in-band parameters and write the prefix if necessary
   @impl true
   def handle_process(:input, %Buffer{} = buffer, _ctx, state) when state.frame_prefix != <<>> do
-    payload = state.partial_frame <> buffer.payload
-
-    case carries_parameters_in_band?(payload) do
-      {:ok, carries_params?} ->
-        payload =
-          if carries_params?,
-            # If the stream carries parameters in-band, don't add the frame prefix. In-band parameters take priority
-            do: payload,
-            # Frame appeared without SPS and PPS, we need to insert them
-            else: state.frame_prefix <> payload
-
-        buffer = %Buffer{buffer | payload: payload}
-        # Frame prefix can always be discarded - we either inserted it or we don't need it at all
-        do_process(buffer, %{state | frame_prefix: <<>>, partial_frame: <<>>})
-
-      {:error, :not_enough_data} ->
-        {:ok, %{state | partial_frame: payload}}
-    end
+    buffer = Map.update!(buffer, :payload, &(state.frame_prefix <> &1))
+    do_process(buffer, %{state | frame_prefix: <<>>})
   end
 
   defp do_process(%Buffer{payload: payload} = buffer, state) do
@@ -273,6 +253,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
       caps ++ buffers_before_change ++ pending_caps ++ acc
     )
   end
+
+  @impl true
+  def handle_caps(:input, %Membrane.H264.RemoteStream{}, ctx, _state)
+      when ctx.pads.input.start_of_stream?,
+      do: raise("Cannot send Membrane.H264.RemoteStream caps after the stream has started")
 
   @impl true
   def handle_caps(:input, %Membrane.H264.RemoteStream{} = caps, _ctx, state) do
@@ -498,38 +483,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
       stream_format: :byte_stream,
       profile: profile
     }
-  end
-
-  # Checks if the required parameter NALus (see @required_parameter_nalus) are present in-band before any video frames appear
-  defp carries_parameters_in_band?(payload) do
-    types =
-      payload
-      |> NALu.parse()
-      |> elem(0)
-      |> Enum.map(& &1.metadata.h264.type)
-
-    # Split NALus parsed from the payload into two sections: parameters and data.
-    # If data appears before required parameters, this would cause an error in FFmpeg,
-    # so we identify the stream as not carrying parameters in-band.
-    # In such a case, they will be inserted into the stream before parsing,
-    # assuming that H264.RemoteStream caps providing them are present
-    {parameter_nalus, data_nalus} = Enum.split_while(types, &is_allowed_before_data/1)
-
-    parameter_nalus_set = MapSet.new(parameter_nalus)
-
-    has_required_parameters? =
-      @required_parameter_nalus |> Enum.all?(&MapSet.member?(parameter_nalus_set, &1))
-
-    cond do
-      has_required_parameters? ->
-        {:ok, true}
-
-      data_nalus == [] ->
-        {:error, :not_enough_data}
-
-      true ->
-        {:ok, false}
-    end
   end
 
   defp find_parameters(data, looking_for \\ [:sps, :pps])
