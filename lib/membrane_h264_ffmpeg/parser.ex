@@ -12,6 +12,14 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   Setting custom packetization options affects metadata, see `alignment`
   and `attach_nalus?` options for details.
+
+  This Parser is also capable of handling out-of-band parameters in the form of Decoder Configuration Record.
+  To inject it, simply send `t:Membrane.H264.RemoteStream` caps containing to this element.
+  There are however some limitations:
+  - `t:Membrane.H264.RemoteStream` caps need to be send only before the first buffer.
+    Sending them during the stream will cause an error
+  - SPS and PPS will be extracted from Decoder Configuration Record and added to the payload of the very first buffer without any checks of in-band parameters.
+    This might result in duplicated SPS and PPS. It shouldn't be a problem, unless you send an incorrect Decoder Configuration Record that doesn't match the stream.
   """
   use Membrane.Filter
   use Bunch
