@@ -14,7 +14,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   and `attach_nalus?` options for details.
 
   This Parser is also capable of handling out-of-band parameters in the form of Decoder Configuration Record.
-  To inject it, simply send `t:Membrane.H264.RemoteStream.t/0` caps containing to this element.
+  To inject it, simply send `t:Membrane.H264.RemoteStream.t/0` caps containing the Decoder Configuration Record to this element.
   There are however some limitations:
   - `t:Membrane.H264.RemoteStream.t/0` caps need to be send only before the first buffer.
     Sending them during the stream will cause an error
