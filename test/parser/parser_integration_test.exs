@@ -9,7 +9,6 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
   @fixtures_dir "./test/fixtures/"
   @tmp_dir "./tmp/ParserTest/"
   @no_params_stream File.read!("test/fixtures/input-10-no-pps-sps.h264")
-  @stream_with_params File.read!("test/fixtures/input-10-720p.h264")
   @stream_with_params_change File.read!("test/fixtures/input-sps-pps-non-idr-sps-pps-idr.h264")
   @input_caps %Membrane.H264.RemoteStream{
     decoder_configuration_record:
@@ -47,18 +46,6 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
 
     Testing.Pipeline.terminate(pipeline, blocking?: true)
     assert_pipeline_playback_changed(pipeline, :prepared, :stopped)
-  end
-
-  test "if it won't add parameters at the beginning if they are present in the input file" do
-    {input_chunks, rem_chunk} = Bunch.Binary.chunk_every_rem(@stream_with_params, 1024)
-    output_file = Path.join(@tmp_dir, "output1.h264")
-    reference_file = Path.join(@fixtures_dir, "input-10-720p.h264")
-
-    {:ok, pipeline} =
-      create_pipeline(input_chunks ++ [rem_chunk], output_file, false)
-      |> Testing.Pipeline.start_link()
-
-    play_and_validate(pipeline, reference_file, output_file)
   end
 
   test "if it will turn off the skip_until_parameters? option if the RemoteStream caps are provided" do
