@@ -133,10 +133,6 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
         update_last_frame_number(picture_order_number, state);
         presentation_order_numbers[frames_cnt] = picture_order_number + state->poc_offset;
         decoding_order_numbers[frames_cnt] = state->last_frame_number;
-        
-        if (presentation_order_numbers[frames_cnt] < 300) {
-          printf("Frame %d, pon: %d, don: %d\n", frames_cnt, picture_order_number, state->last_frame_number);
-        }
       } else {
         presentation_order_numbers[frames_cnt] = -1;
         decoding_order_numbers[frames_cnt] = -1;
