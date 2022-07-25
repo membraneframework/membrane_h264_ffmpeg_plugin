@@ -58,8 +58,7 @@ static int resolution_changed(resolution last_res, State *state) {
 void update_last_frame_number(int poc, State *state) {
   state->last_frame_number += 1;
   if(poc == 0) {
-    // frame gets incremented once while poc gets incremented twice?
-    state->poc_offset = 2 * state->last_frame_number;
+    state->poc_offset = state->last_frame_number;
   }
 }
 
@@ -134,6 +133,10 @@ UNIFEX_TERM parse(UnifexEnv *env, UnifexPayload *payload, State *state) {
         update_last_frame_number(picture_order_number, state);
         presentation_order_numbers[frames_cnt] = picture_order_number + state->poc_offset;
         decoding_order_numbers[frames_cnt] = state->last_frame_number;
+        
+        if (presentation_order_numbers[frames_cnt] < 300) {
+          printf("Frame %d, pon: %d, don: %d\n", frames_cnt, picture_order_number, state->last_frame_number);
+        }
       } else {
         presentation_order_numbers[frames_cnt] = -1;
         decoding_order_numbers[frames_cnt] = -1;
