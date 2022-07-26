@@ -58,7 +58,7 @@ static int resolution_changed(resolution last_res, State *state) {
 void update_last_frame_number(int poc, State *state) {
   state->last_frame_number += 1;
   if(poc == 0) {
-    state->poc_offset += state->last_frame_number;
+    state->poc_offset = state->last_frame_number;
   }
 }
 
