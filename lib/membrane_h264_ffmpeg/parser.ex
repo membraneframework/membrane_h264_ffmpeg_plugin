@@ -99,23 +99,26 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 description: """
                 Determines whether to drop the stream until the first set of SPS and PPS is received.
                 """
+              ],
+              max_b_frames: [
+                type: :integer,
+                default: 5,
+                description: "dupa123"
               ]
 
   @impl true
   def handle_init(opts) do
-    state = %{
-      pending_caps: nil,
-      parser_ref: nil,
-      partial_frame: <<>>,
-      frame_prefix: opts.sps <> opts.pps,
-      framerate: opts.framerate,
-      alignment: opts.alignment,
-      attach_nalus?: opts.attach_nalus?,
-      skip_until_keyframe?: opts.skip_until_keyframe?,
-      skip_until_parameters?: opts.skip_until_parameters?,
-      metadata: nil,
-      acc: <<>>
-    }
+    state =
+      Map.from_struct(opts)
+      |> Map.merge(%{
+        pending_caps: nil,
+        parser_ref: nil,
+        partial_frame: <<>>,
+        frame_prefix: opts.sps <> opts.pps,
+        metadata: nil,
+        acc: <<>>,
+        profile_has_b_frames?: nil
+      })
 
     {:ok, state}
   end
@@ -230,7 +233,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc) do
     {old_bufs, next_bufs} = Enum.split_while(bufs, fn {au, _buf} -> au < meta.index end)
-    next_caps = mk_caps(state, meta.width, meta.height)
+    {next_caps, state} = mk_caps(state, meta.width, meta.height)
 
     {caps, state} =
       if old_bufs == [],
@@ -310,7 +313,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
       end
 
-      caps = mk_caps(state, resolution.width, resolution.height)
+      {caps, state} = mk_caps(state, resolution.width, resolution.height)
       caps_actions = if caps != ctx.pads.output.caps, do: [caps: {:output, caps}], else: []
 
       bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
@@ -426,7 +429,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
             frames
           )
 
-        dts = div(decoding_order_number * seconds * Membrane.Time.second(), frames)
+        dts =
+          div(
+            (decoding_order_number - state.max_b_frames) * seconds * Membrane.Time.second(),
+            frames
+          )
+
         {pts, dts}
       else
         positive_order_number: false -> {nil, nil}
@@ -482,15 +490,22 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp mk_caps(state, width, height) do
     {:ok, profile} = Native.get_profile(state.parser_ref)
 
-    %H264{
-      width: width,
-      height: height,
-      framerate: state.framerate || {0, 1},
-      alignment: state.alignment,
-      nalu_in_metadata?: state.attach_nalus?,
-      stream_format: :byte_stream,
-      profile: profile
+    {
+      %H264{
+        width: width,
+        height: height,
+        framerate: state.framerate || {0, 1},
+        alignment: state.alignment,
+        nalu_in_metadata?: state.attach_nalus?,
+        stream_format: :byte_stream,
+        profile: profile
+      },
+      %{state | profile_has_b_frames?: profile_has_b_frames?(profile)}
     }
+  end
+
+  defp profile_has_b_frames?(profile) do
+    if profile in ["constrained_baseline", "baseline"], do: false, else: true
   end
 
   defp find_parameters(data, looking_for \\ [:sps, :pps])
