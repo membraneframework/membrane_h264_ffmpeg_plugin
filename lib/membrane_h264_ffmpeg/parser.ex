@@ -103,7 +103,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
               max_b_frames: [
                 type: :integer,
                 default: 5,
-                description: "dupa123"
+                description: """
+                Defines the maximum expected number of consequent b-frames in the stream.
+                """
               ]
 
   @impl true
