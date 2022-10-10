@@ -218,8 +218,10 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
 
   // "Note 2: the JM reference encoder increments POC by 2 for every complete
   // frame." from https://www.vcodex.com/h264avc-picture-management/
-  int presentation_order_number =
-      state->parser_ctx->output_picture_number / 2 + state->poc_offset;
+  int picture_order_number = state->parser_ctx->output_picture_number / 2;
+  update_last_frame_number(picture_order_number, state);
+
+  int presentation_order_number = picture_order_number + state->poc_offset;
   int decoding_order_number = state->last_frame_number + 1;
 
   if (resolution_changed(res, state)) {
