@@ -100,9 +100,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 Determines whether to drop the stream until the first set of SPS and PPS is received.
                 """
               ],
-              max_b_frames: [
+              max_frame_reorder: [
                 type: :integer,
-                default: 5,
+                default: 15,
                 description: """
                 Defines the maximum expected number of consequent b-frames in the stream.
                 """
@@ -431,9 +431,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
             frames
           )
 
+        decoding_order_number =
+          decoding_order_number -
+            if state.profile_has_b_frames?, do: state.max_frame_reorder, else: 0
+
         dts =
           div(
-            (decoding_order_number - state.max_b_frames) * seconds * Membrane.Time.second(),
+            decoding_order_number * seconds * Membrane.Time.second(),
             frames
           )
 
@@ -507,7 +511,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   defp profile_has_b_frames?(profile) do
-    if profile in ["constrained_baseline", "baseline"], do: false, else: true
+    profile not in ["constrained_baseline", "baseline"]
   end
 
   defp find_parameters(data, looking_for \\ [:sps, :pps])
