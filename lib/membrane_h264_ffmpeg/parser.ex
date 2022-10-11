@@ -193,6 +193,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
       {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} ->
         metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
 
+        {:ok, profile} = Native.get_profile(state.parser_ref)
+        state = %{state | profile_has_b_frames?: profile_has_b_frames?(profile)}
+
         {bufs, state} =
           parse_access_units(
             payload,
@@ -235,7 +238,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc) do
     {old_bufs, next_bufs} = Enum.split_while(bufs, fn {au, _buf} -> au < meta.index end)
-    {next_caps, state} = mk_caps(state, meta.width, meta.height)
+    next_caps = mk_caps(state, meta.width, meta.height)
 
     {caps, state} =
       if old_bufs == [],
@@ -315,7 +318,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
       end
 
-      {caps, state} = mk_caps(state, resolution.width, resolution.height)
+      caps = mk_caps(state, resolution.width, resolution.height)
       caps_actions = if caps != ctx.pads.output.caps, do: [caps: {:output, caps}], else: []
 
       bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
@@ -432,8 +435,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
           )
 
         decoding_order_number =
-          decoding_order_number -
-            if state.profile_has_b_frames?, do: state.max_frame_reorder, else: 0
+          if state.profile_has_b_frames?,
+            do: decoding_order_number - state.max_frame_reorder,
+            else: decoding_order_number
 
         dts =
           div(
@@ -496,17 +500,14 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp mk_caps(state, width, height) do
     {:ok, profile} = Native.get_profile(state.parser_ref)
 
-    {
-      %H264{
-        width: width,
-        height: height,
-        framerate: state.framerate || {0, 1},
-        alignment: state.alignment,
-        nalu_in_metadata?: state.attach_nalus?,
-        stream_format: :byte_stream,
-        profile: profile
-      },
-      %{state | profile_has_b_frames?: profile_has_b_frames?(profile)}
+    %H264{
+      width: width,
+      height: height,
+      framerate: state.framerate || {0, 1},
+      alignment: state.alignment,
+      nalu_in_metadata?: state.attach_nalus?,
+      stream_format: :byte_stream,
+      profile: profile
     }
   end
 
