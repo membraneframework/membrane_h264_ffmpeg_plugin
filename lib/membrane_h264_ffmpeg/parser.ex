@@ -99,23 +99,28 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 description: """
                 Determines whether to drop the stream until the first set of SPS and PPS is received.
                 """
+              ],
+              max_frame_reorder: [
+                type: :integer,
+                default: 15,
+                description: """
+                Defines the maximum expected number of consequent b-frames in the stream.
+                """
               ]
 
   @impl true
   def handle_init(opts) do
-    state = %{
-      pending_caps: nil,
-      parser_ref: nil,
-      partial_frame: <<>>,
-      frame_prefix: opts.sps <> opts.pps,
-      framerate: opts.framerate,
-      alignment: opts.alignment,
-      attach_nalus?: opts.attach_nalus?,
-      skip_until_keyframe?: opts.skip_until_keyframe?,
-      skip_until_parameters?: opts.skip_until_parameters?,
-      metadata: nil,
-      acc: <<>>
-    }
+    state =
+      Map.from_struct(opts)
+      |> Map.merge(%{
+        pending_caps: nil,
+        parser_ref: nil,
+        partial_frame: <<>>,
+        frame_prefix: opts.sps <> opts.pps,
+        metadata: nil,
+        acc: <<>>,
+        profile_has_b_frames?: nil
+      })
 
     {:ok, state}
   end
@@ -187,6 +192,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
     case Native.parse(payload, state.parser_ref) do
       {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} ->
         metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
+
+        {:ok, profile} = Native.get_profile(state.parser_ref)
+        state = %{state | profile_has_b_frames?: profile_has_b_frames?(profile)}
 
         {bufs, state} =
           parse_access_units(
@@ -426,7 +434,17 @@ defmodule Membrane.H264.FFmpeg.Parser do
             frames
           )
 
-        dts = div(decoding_order_number * seconds * Membrane.Time.second(), frames)
+        decoding_order_number =
+          if state.profile_has_b_frames?,
+            do: decoding_order_number - state.max_frame_reorder,
+            else: decoding_order_number
+
+        dts =
+          div(
+            decoding_order_number * seconds * Membrane.Time.second(),
+            frames
+          )
+
         {pts, dts}
       else
         positive_order_number: false -> {nil, nil}
@@ -491,6 +509,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
       stream_format: :byte_stream,
       profile: profile
     }
+  end
+
+  defp profile_has_b_frames?(profile) do
+    profile not in ["constrained_baseline", "baseline"]
   end
 
   defp find_parameters(data, looking_for \\ [:sps, :pps])
