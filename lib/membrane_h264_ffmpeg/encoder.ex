@@ -12,7 +12,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   Please check `t:t/0` for available options.
   """
   use Membrane.Filter
-  use Bunch.Typespec
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.H264
@@ -30,18 +29,17 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @default_crf 23
 
-  @list_type presets :: [
-               :ultrafast,
-               :superfast,
-               :veryfast,
-               :faster,
-               :fast,
-               :medium,
-               :slow,
-               :slower,
-               :veryslow,
-               :placebo
-             ]
+  @type preset() ::
+          :ultrafast
+          | :superfast
+          | :veryfast
+          | :faster
+          | :fast
+          | :medium
+          | :slow
+          | :slower
+          | :veryslow
+          | :placebo
 
   def_options crf: [
                 description: """
@@ -62,7 +60,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 same quality can be achieved.
                 """,
                 type: :atom,
-                spec: presets(),
+                spec: preset(),
                 default: :medium
               ],
               profile: [
