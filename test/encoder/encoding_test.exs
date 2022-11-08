@@ -1,4 +1,4 @@
-defmodule DecodingTest do
+defmodule EncoderTest do
   use ExUnit.Case, async: true
   use Membrane.Pipeline
 
