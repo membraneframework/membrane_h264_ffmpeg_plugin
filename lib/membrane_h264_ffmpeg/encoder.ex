@@ -88,7 +88,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
               ],
               gop_size: [
                 type: :int,
-                description: "Number of frames in group of pictures.",
+                description: "Number of frames in a group of pictures.",
                 default: nil
               ]
 
@@ -96,14 +96,10 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def handle_init(opts) do
     state =
       opts
-      |> max_b_frames_to_native_format()
       |> Map.put(:encoder_ref, nil)
 
     {:ok, state}
   end
-
-  defp max_b_frames_to_native_format(%{max_b_frames: nil} = opts), do: %{opts | max_b_frames: -1}
-  defp max_b_frames_to_native_format(opts), do: opts
 
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
@@ -138,7 +134,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              caps.pixel_format,
              state.preset,
              state.profile,
-             state.max_b_frames,
+             state.max_b_frames || -1,
              state.gop_size || -1,
              framerate_num,
              framerate_denom,
