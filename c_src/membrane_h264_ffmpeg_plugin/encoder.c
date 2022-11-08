@@ -9,7 +9,7 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
 }
 
 UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
-                   char *preset, char *profile, int max_b_frames,
+                   char *preset, char *profile, int max_b_frames, int gop_size,
                    int framerate_num, int framerate_denom, int crf) {
   UNIFEX_TERM res;
   AVDictionary *params = NULL;
@@ -61,6 +61,10 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
   if (max_b_frames > -1) {
     state->codec_ctx->max_b_frames = max_b_frames;
   }
+  if (gop_size > -1) {
+    state->codec_ctx->gop_size = gop_size;
+  }
+
   av_dict_set(&params, "preset", preset, 0);
 
   if (strcmp("nil", profile) != 0) {

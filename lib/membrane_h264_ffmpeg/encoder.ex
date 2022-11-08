@@ -85,6 +85,11 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 description:
                   "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
                 default: nil
+              ],
+              gop_size: [
+                type: :int,
+                description: "Number of frames in group of pictures.",
+                default: nil
               ]
 
   @impl true
@@ -134,6 +139,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              state.preset,
              state.profile,
              state.max_b_frames,
+             state.gop_size || -1,
              framerate_num,
              framerate_denom,
              state.crf

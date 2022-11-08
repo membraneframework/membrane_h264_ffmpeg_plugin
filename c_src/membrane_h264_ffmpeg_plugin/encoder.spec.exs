@@ -9,6 +9,7 @@ spec create(
        preset :: atom,
        profile :: atom,
        max_b_frames :: int,
+       gop_size :: int,
        framerate_num :: int,
        framerate_denom :: int,
        crf :: int
