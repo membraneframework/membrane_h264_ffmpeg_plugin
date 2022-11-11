@@ -96,12 +96,13 @@ UNIFEX_TERM get_frame_size(UnifexEnv *env, State *state) {
 }
 
 static int get_frames(UnifexEnv *env, AVFrame *frame,
-                      UnifexPayload ***ret_frames, int64_t **dts_list,
+                      UnifexPayload ***ret_frames, int64_t **dts_list, int64_t **pts_list,
                       int *max_frames, int *frame_cnt, int use_shm,
                       State *state) {
   AVPacket *pkt = av_packet_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
-  int64_t *timestamps = unifex_alloc((*max_frames) * sizeof(*timestamps));
+  int64_t *timestamps_dts = unifex_alloc((*max_frames) * sizeof(*timestamps_dts));
+  int64_t *timestamps_pts = unifex_alloc((*max_frames) * sizeof(*timestamps_pts));
 
   int ret = avcodec_send_frame(state->codec_ctx, frame);
   if (ret < 0) {
@@ -119,11 +120,14 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
     if (*frame_cnt >= (*max_frames)) {
       *max_frames *= 2;
       frames = unifex_realloc(frames, (*max_frames) * sizeof(*frames));
-      timestamps =
-          unifex_realloc(timestamps, (*max_frames) * sizeof(*timestamps));
+      timestamps_dts =
+          unifex_realloc(timestamps_dts, (*max_frames) * sizeof(*timestamps_dts));
+      timestamps_pts =
+          unifex_realloc(timestamps_pts, (*max_frames) * sizeof(*timestamps_pts));
     }
 
-    timestamps[*frame_cnt] = pkt->dts;
+    timestamps_dts[*frame_cnt] = pkt->dts;
+    timestamps_pts[*frame_cnt] = pkt->pts;
     frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
     UnifexPayloadType payload_type;
     if (use_shm) {
@@ -140,7 +144,8 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
   ret = 0;
 exit_get_frames:
   *ret_frames = frames;
-  *dts_list = timestamps;
+  *dts_list = timestamps_dts;
+  *pts_list = timestamps_pts;
   av_packet_free(&pkt);
   return ret;
 }
@@ -152,6 +157,7 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   int max_frames = 16, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
   int64_t *dts_list = NULL;
+  int64_t *pts_list = NULL;
 
   AVFrame *frame = av_frame_alloc();
   frame->format = state->codec_ctx->pix_fmt;
@@ -167,7 +173,7 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   }
   state->last_pts = frame->pts;
 
-  res = get_frames(env, frame, &out_frames, &dts_list, &max_frames, &frame_cnt,
+  res = get_frames(env, frame, &out_frames, &dts_list, &pts_list, &max_frames, &frame_cnt,
                    use_shm, state);
 
   switch (res) {
@@ -179,7 +185,7 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
     break;
   default:
     res_term =
-        encode_result_ok(env, dts_list, frame_cnt, out_frames, frame_cnt);
+        encode_result_ok(env, dts_list, frame_cnt, pts_list, frame_cnt, out_frames, frame_cnt);
   }
   if (out_frames != NULL) {
     for (int i = 0; i < frame_cnt; i++) {
@@ -202,8 +208,9 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
   int max_frames = 16, frame_cnt = 0;
   UnifexPayload **out_frames = NULL;
   int64_t *dts_list = NULL;
+  int64_t *pts_list = NULL;
 
-  int res = get_frames(env, NULL, &out_frames, &dts_list, &max_frames,
+  int res = get_frames(env, NULL, &out_frames, &dts_list, &pts_list, &max_frames,
                        &frame_cnt, use_shm, state);
   switch (res) {
   case ENCODER_SEND_FRAME_ERROR:
@@ -214,7 +221,7 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
     break;
   default:
     res_term =
-        encode_result_ok(env, dts_list, frame_cnt, out_frames, frame_cnt);
+        encode_result_ok(env, dts_list, frame_cnt, pts_list, frame_cnt, out_frames, frame_cnt);
   }
 
   if (out_frames != NULL) {
