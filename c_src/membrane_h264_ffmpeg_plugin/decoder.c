@@ -40,7 +40,8 @@ exit_create:
 }
 
 static int get_frames(UnifexEnv *env, AVPacket *pkt,
-                      UnifexPayload ***ret_frames, int64_t **best_effort_timestamps, int *max_frames,
+                      UnifexPayload ***ret_frames,
+                      int64_t **best_effort_timestamps, int *max_frames,
                       int *frame_cnt, int use_shm, State *state) {
   AVFrame *frame = av_frame_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
@@ -62,7 +63,8 @@ static int get_frames(UnifexEnv *env, AVPacket *pkt,
     if (*frame_cnt >= (*max_frames)) {
       *max_frames *= 2;
       frames = unifex_realloc(frames, (*max_frames) * sizeof(*frames));
-      timestamps = unifex_realloc(timestamps, (*max_frames) * sizeof(*timestamps));
+      timestamps =
+          unifex_realloc(timestamps, (*max_frames) * sizeof(*timestamps));
     }
 
     size_t payload_size = av_image_get_buffer_size(
@@ -96,7 +98,8 @@ exit_get_frames:
   return ret;
 }
 
-UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, int64_t dts, int use_shm, State *state) {
+UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
+                   int64_t dts, int use_shm, State *state) {
   UNIFEX_TERM res_term;
   AVPacket *pkt = NULL;
   int max_frames = 16, frame_cnt = 0;
@@ -110,7 +113,8 @@ UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, int64_t 
 
   int ret = 0;
   if (pkt->size > 0) {
-    ret = get_frames(env, pkt, &out_frames, &pts_list, &max_frames, &frame_cnt, use_shm, state);
+    ret = get_frames(env, pkt, &out_frames, &pts_list, &max_frames, &frame_cnt,
+                     use_shm, state);
   }
 
   switch (ret) {
@@ -121,7 +125,8 @@ UNIFEX_TERM decode(UnifexEnv *env, UnifexPayload *payload, int64_t pts, int64_t 
     res_term = decode_result_error(env, "decode");
     break;
   default:
-    res_term = decode_result_ok(env, pts_list, frame_cnt, out_frames, frame_cnt);
+    res_term =
+        decode_result_ok(env, pts_list, frame_cnt, out_frames, frame_cnt);
   }
 
   if (out_frames != NULL) {
@@ -147,8 +152,9 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
   UnifexPayload **out_frames = NULL;
   int64_t *pts_list = NULL;
 
-  int ret = get_frames(env, NULL, &out_frames, &pts_list, &max_frames, &frame_cnt, use_shm, state);
-  
+  int ret = get_frames(env, NULL, &out_frames, &pts_list, &max_frames,
+                       &frame_cnt, use_shm, state);
+
   switch (ret) {
   case DECODER_SEND_PKT_ERROR:
     res_term = flush_result_error(env, "send_pkt");

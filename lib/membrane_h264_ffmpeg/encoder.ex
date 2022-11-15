@@ -18,16 +18,16 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   alias Membrane.H264.FFmpeg.Common
   alias Membrane.RawVideo
 
-  def_input_pad(:input,
+  @no_pts -9_223_372_036_854_775_808
+
+  def_input_pad :input,
     demand_mode: :auto,
     demand_unit: :buffers,
     caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
-  )
 
-  def_output_pad(:output,
+  def_output_pad :output,
     demand_mode: :auto,
     caps: {H264, stream_format: :byte_stream, alignment: :au}
-  )
 
   @default_crf 23
 
@@ -43,58 +43,56 @@ defmodule Membrane.H264.FFmpeg.Encoder do
           | :veryslow
           | :placebo
 
-  def_options(
-    crf: [
-      description: """
-      Constant rate factor that affects the quality of output stream.
-      Value of 0 is lossless compression while 51 (for 8-bit samples)
-      or 63 (10-bit) offers the worst quality.
-      The range is exponential, so increasing the CRF value +6 results
-      in roughly half the bitrate / file size, while -6 leads
-      to roughly twice the bitrate.
-      """,
-      type: :int,
-      default: @default_crf
-    ],
-    preset: [
-      description: """
-      Collection of predefined options providing certain encoding.
-      The slower the preset chosen, the higher compression for the
-      same quality can be achieved.
-      """,
-      type: :atom,
-      spec: preset(),
-      default: :medium
-    ],
-    profile: [
-      description: """
-      Sets a limit on the features that the encoder will use to the ones supported in a provided H264 profile.
-      Said features will have to be supported by the decoder in order to decode the resulting video.
-      It may override other, more specific options affecting compression (e.g setting `max_b_frames` to 2
-      while profile is set to `:baseline` will have no effect and no B-frames will be present).
-      """,
-      type: :atom,
-      spec: H264.profile_t() | nil,
-      default: nil
-    ],
-    use_shm?: [
-      type: :boolean,
-      desciption:
-        "If true, native encoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
-      default: false
-    ],
-    max_b_frames: [
-      type: :int,
-      description:
-        "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
-      default: nil
-    ],
-    gop_size: [
-      type: :int,
-      description: "Number of frames in a group of pictures.",
-      default: nil
-    ]
-  )
+  def_options crf: [
+                description: """
+                Constant rate factor that affects the quality of output stream.
+                Value of 0 is lossless compression while 51 (for 8-bit samples)
+                or 63 (10-bit) offers the worst quality.
+                The range is exponential, so increasing the CRF value +6 results
+                in roughly half the bitrate / file size, while -6 leads
+                to roughly twice the bitrate.
+                """,
+                type: :int,
+                default: @default_crf
+              ],
+              preset: [
+                description: """
+                Collection of predefined options providing certain encoding.
+                The slower the preset chosen, the higher compression for the
+                same quality can be achieved.
+                """,
+                type: :atom,
+                spec: preset(),
+                default: :medium
+              ],
+              profile: [
+                description: """
+                Sets a limit on the features that the encoder will use to the ones supported in a provided H264 profile.
+                Said features will have to be supported by the decoder in order to decode the resulting video.
+                It may override other, more specific options affecting compression (e.g setting `max_b_frames` to 2
+                while profile is set to `:baseline` will have no effect and no B-frames will be present).
+                """,
+                type: :atom,
+                spec: H264.profile_t() | nil,
+                default: nil
+              ],
+              use_shm?: [
+                type: :boolean,
+                desciption:
+                  "If true, native encoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
+                default: false
+              ],
+              max_b_frames: [
+                type: :int,
+                description:
+                  "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
+                default: nil
+              ],
+              gop_size: [
+                type: :int,
+                description: "Number of frames in a group of pictures.",
+                default: nil
+              ]
 
   @impl true
   def handle_init(opts) do
@@ -108,11 +106,11 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
     %{encoder_ref: encoder_ref, use_shm?: use_shm?} = state
-    pts = buffer.pts || 0
+    pts = if is_nil(buffer.pts), do: @no_pts, else: Common.to_h264_time_base_truncated(buffer.pts)
 
     case Native.encode(
            buffer.payload,
-           Common.to_h264_time_base_truncated(pts),
+           pts,
            use_shm?,
            encoder_ref
          ) do

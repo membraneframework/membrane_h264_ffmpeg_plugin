@@ -96,13 +96,15 @@ UNIFEX_TERM get_frame_size(UnifexEnv *env, State *state) {
 }
 
 static int get_frames(UnifexEnv *env, AVFrame *frame,
-                      UnifexPayload ***ret_frames, int64_t **dts_list, int64_t **pts_list,
-                      int *max_frames, int *frame_cnt, int use_shm,
-                      State *state) {
+                      UnifexPayload ***ret_frames, int64_t **dts_list,
+                      int64_t **pts_list, int *max_frames, int *frame_cnt,
+                      int use_shm, State *state) {
   AVPacket *pkt = av_packet_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
-  int64_t *timestamps_dts = unifex_alloc((*max_frames) * sizeof(*timestamps_dts));
-  int64_t *timestamps_pts = unifex_alloc((*max_frames) * sizeof(*timestamps_pts));
+  int64_t *decoding_ts =
+      unifex_alloc((*max_frames) * sizeof(*decoding_ts));
+  int64_t *presentation_ts =
+      unifex_alloc((*max_frames) * sizeof(*presentation_ts));
 
   int ret = avcodec_send_frame(state->codec_ctx, frame);
   if (ret < 0) {
@@ -120,14 +122,14 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
     if (*frame_cnt >= (*max_frames)) {
       *max_frames *= 2;
       frames = unifex_realloc(frames, (*max_frames) * sizeof(*frames));
-      timestamps_dts =
-          unifex_realloc(timestamps_dts, (*max_frames) * sizeof(*timestamps_dts));
-      timestamps_pts =
-          unifex_realloc(timestamps_pts, (*max_frames) * sizeof(*timestamps_pts));
+      decoding_ts = unifex_realloc(decoding_ts,
+                                      (*max_frames) * sizeof(*decoding_ts));
+      presentation_ts = unifex_realloc(presentation_ts,
+                                      (*max_frames) * sizeof(*presentation_ts));
     }
 
-    timestamps_dts[*frame_cnt] = pkt->dts;
-    timestamps_pts[*frame_cnt] = pkt->pts;
+    decoding_ts[*frame_cnt] = pkt->dts;
+    presentation_ts[*frame_cnt] = pkt->pts;
     frames[*frame_cnt] = unifex_alloc(sizeof(UnifexPayload));
     UnifexPayloadType payload_type;
     if (use_shm) {
@@ -144,8 +146,8 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
   ret = 0;
 exit_get_frames:
   *ret_frames = frames;
-  *dts_list = timestamps_dts;
-  *pts_list = timestamps_pts;
+  *dts_list = decoding_ts;
+  *pts_list = presentation_ts;
   av_packet_free(&pkt);
   return ret;
 }
@@ -173,8 +175,8 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   }
   state->last_pts = frame->pts;
 
-  res = get_frames(env, frame, &out_frames, &dts_list, &pts_list, &max_frames, &frame_cnt,
-                   use_shm, state);
+  res = get_frames(env, frame, &out_frames, &dts_list, &pts_list, &max_frames,
+                   &frame_cnt, use_shm, state);
 
   switch (res) {
   case ENCODER_SEND_FRAME_ERROR:
@@ -184,8 +186,8 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
     res_term = encode_result_error(env, "encode");
     break;
   default:
-    res_term =
-        encode_result_ok(env, dts_list, frame_cnt, pts_list, frame_cnt, out_frames, frame_cnt);
+    res_term = encode_result_ok(env, dts_list, frame_cnt, pts_list, frame_cnt,
+                                out_frames, frame_cnt);
   }
   if (out_frames != NULL) {
     for (int i = 0; i < frame_cnt; i++) {
@@ -210,8 +212,8 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
   int64_t *dts_list = NULL;
   int64_t *pts_list = NULL;
 
-  int res = get_frames(env, NULL, &out_frames, &dts_list, &pts_list, &max_frames,
-                       &frame_cnt, use_shm, state);
+  int res = get_frames(env, NULL, &out_frames, &dts_list, &pts_list,
+                       &max_frames, &frame_cnt, use_shm, state);
   switch (res) {
   case ENCODER_SEND_FRAME_ERROR:
     res_term = encode_result_error(env, "send_frame");
@@ -220,8 +222,8 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
     res_term = encode_result_error(env, "encode");
     break;
   default:
-    res_term =
-        encode_result_ok(env, dts_list, frame_cnt, pts_list, frame_cnt, out_frames, frame_cnt);
+    res_term = encode_result_ok(env, dts_list, frame_cnt, pts_list, frame_cnt,
+                                out_frames, frame_cnt);
   }
 
   if (out_frames != NULL) {
