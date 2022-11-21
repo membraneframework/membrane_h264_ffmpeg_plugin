@@ -6,7 +6,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   (`Membrane.Element.RawVideo.Parser`) may be required in a pipeline before
   the encoder (e.g. when input is read from `Membrane.File.Source`).
 
-  Additionally, the encoder has to receive proper caps with picture format and dimensions
+  Additionally, the encoder has to receive proper stream_format with picture format and dimensions
   before any encoding takes place.
 
   Please check `t:t/0` for available options.
@@ -21,11 +21,11 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def_input_pad :input,
     demand_mode: :auto,
     demand_unit: :buffers,
-    caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
+    accepted_format: %RawVideo{pixel_format: format, aligned: true} when format in [:I420, :I422]
 
   def_output_pad :output,
     demand_mode: :auto,
-    caps: {H264, stream_format: :byte_stream, alignment: :au}
+    accepted_format: %H264{stream_format: :byte_stream, alignment: :au}
 
   @default_crf 23
 
@@ -50,7 +50,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 in roughly half the bitrate / file size, while -6 leads
                 to roughly twice the bitrate.
                 """,
-                type: :int,
+                spec: integer(),
                 default: @default_crf
               ],
               preset: [
@@ -59,7 +59,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 The slower the preset chosen, the higher compression for the
                 same quality can be achieved.
                 """,
-                type: :atom,
                 spec: preset(),
                 default: :medium
               ],
@@ -70,35 +69,34 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 It may override other, more specific options affecting compression (e.g setting `max_b_frames` to 2
                 while profile is set to `:baseline` will have no effect and no B-frames will be present).
                 """,
-                type: :atom,
                 spec: H264.profile_t() | nil,
                 default: nil
               ],
               use_shm?: [
-                type: :boolean,
+                spec: boolean(),
                 desciption:
                   "If true, native encoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
                 default: false
               ],
               max_b_frames: [
-                type: :int,
+                spec: integer(),
                 description:
                   "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
                 default: nil
               ],
               gop_size: [
-                type: :int,
+                spec: integer(),
                 description: "Number of frames in a group of pictures.",
                 default: nil
               ]
 
   @impl true
-  def handle_init(opts) do
+  def handle_init(_ctx, opts) do
     state =
       opts
       |> Map.put(:encoder_ref, nil)
 
-    {:ok, state}
+    {[], state}
   end
 
   @impl true
@@ -115,23 +113,23 @@ defmodule Membrane.H264.FFmpeg.Encoder do
       {:ok, dts_list, frames} ->
         bufs = wrap_frames(dts_list, frames)
 
-        {{:ok, bufs}, state}
+        {bufs, state}
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Error: #{inspect(reason)}"
     end
   end
 
   @impl true
-  def handle_caps(:input, %RawVideo{} = caps, _ctx, state) do
-    {framerate_num, framerate_denom} = caps.framerate
+  def handle_stream_format(:input, stream_format, _ctx, state) do
+    {framerate_num, framerate_denom} = stream_format.framerate
 
     with {:ok, buffers} <- flush_encoder_if_exists(state),
          {:ok, new_encoder_ref} <-
            Native.create(
-             caps.width,
-             caps.height,
-             caps.pixel_format,
+             stream_format.width,
+             stream_format.height,
+             stream_format.pixel_format,
              state.preset,
              state.profile,
              state.max_b_frames || -1,
@@ -140,11 +138,11 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              framerate_denom,
              state.crf
            ) do
-      caps = create_new_caps(caps, state)
-      actions = buffers ++ [caps: caps]
-      {{:ok, actions}, %{state | encoder_ref: new_encoder_ref}}
+      stream_format = create_new_stream_format(stream_format, state)
+      actions = buffers ++ [stream_format: stream_format]
+      {actions, %{state | encoder_ref: new_encoder_ref}}
     else
-      {:error, reason} -> {{:error, reason}, state}
+      {:error, reason} -> raise "Error: #{inspect(reason)}"
     end
   end
 
@@ -152,17 +150,12 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def handle_end_of_stream(:input, _ctx, state) do
     case flush_encoder_if_exists(state) do
       {:ok, buffers} ->
-        actions = buffers ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
-        {{:ok, actions}, state}
+        actions = buffers ++ [end_of_stream: :output, notify_parent: {:end_of_stream, :input}]
+        {actions, state}
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Error: #{inspect(reason)}"
     end
-  end
-
-  @impl true
-  def handle_prepared_to_stopped(_ctx, state) do
-    {:ok, %{state | encoder_ref: nil}}
   end
 
   defp flush_encoder_if_exists(%{encoder_ref: nil}) do
@@ -186,13 +179,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     |> then(&[buffer: {:output, &1}])
   end
 
-  defp create_new_caps(caps, state) do
+  defp create_new_stream_format(stream_format, state) do
     {:output,
      %H264{
        alignment: :au,
-       framerate: caps.framerate,
-       height: caps.height,
-       width: caps.width,
+       framerate: stream_format.framerate,
+       height: stream_format.height,
+       width: stream_format.width,
        profile: state.profile,
        stream_format: :byte_stream
      }}

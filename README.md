@@ -16,7 +16,7 @@ Documentation is available at [HexDocs](https://hexdocs.pm/membrane_h264_ffmpeg_
 Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 ```elixir
-  {:membrane_h264_ffmpeg_plugin, "~> 0.23.0"}
+  {:membrane_h264_ffmpeg_plugin, "~> 0.24.0"}
 ```
 
 You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.
@@ -50,22 +50,15 @@ defmodule Decoding.Pipeline do
   use Membrane.Pipeline
 
   @impl true
-  def handle_init(_) do
-    children = [
-      source: %Membrane.File.Source{chunk_size: 40_960, location: "input.h264"},
-      parser: %H264.FFmpeg.Parser{framerate: {30, 1}},
-      decoder: H264.FFmpeg.Decoder,
-      sink: %Membrane.File.Sink{location: "output.raw"}
+  def handle_init(_ctx, _opts) do
+    structure = [
+      child(:source, %Membrane.File.Source{chunk_size: 40_960, location: "input.h264"})
+      |> child(:parser, %H264.FFmpeg.Parser{framerate: {30, 1}})
+      |> child(:decoder, H264.FFmpeg.Decoder)
+      |> child(:sink,  %Membrane.File.Sink{location: "output.raw"})
     ]
 
-    links = [
-      link(:source)
-      |> to(:parser)
-      |> to(:decoder)
-      |> to(:sink)
-    ]
-
-    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+    {[spec: structure], %{}}
   end
 end
 ```
@@ -80,21 +73,14 @@ defmodule Encoding.Pipeline do
 
   @impl true
   def handle_init(_) do
-    children = [
-      source: %Membrane.File.Source{chunk_size: 40_960, location: "input.raw"},
-      parser: %Membrane.RawVideo.Parser{width: 1280, height: 720, pixel_format: :I420},
-      encoder: %Membrane.H264.FFmpeg.Encoder{preset: :fast, crf: 30},
-      sink: %Membrane.File.Sink{location: "output.h264"}
+    structure = [
+      child(:source, %Membrane.File.Source{chunk_size: 40_960, location: "input.raw"})
+      |> child(:parser, %Membrane.RawVideo.Parser{width: 1280, height: 720, pixel_format: :I420})
+      |> child(:encoder, %Membrane.H264.FFmpeg.Encoder{preset: :fast, crf: 30})
+      |> child(:sink, %Membrane.File.Sink{location: "output.h264"})
     ]
 
-    links = [
-      link(:source)
-      |> to(:parser)
-      |> to(:encoder)
-      |> to(:sink)
-    ]
-
-    {{:ok, spec: %ParentSpec{children: children, links: links}}, %{}}
+    {[spec: structure], %{}}
   end
 end
 ```

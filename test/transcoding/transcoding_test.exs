@@ -1,30 +1,30 @@
 defmodule TranscodingTest do
   use ExUnit.Case
+  use Membrane.Pipeline
+
   import Membrane.Testing.Assertions
   alias Membrane.H264
   alias Membrane.Testing.Pipeline
 
   defp make_pipeline(in_path, out_path) do
-    Pipeline.start_link(%Pipeline.Options{
-      elements: [
-        file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
-        parser: H264.FFmpeg.Parser,
-        decoder: H264.FFmpeg.Decoder,
-        encoder: %H264.FFmpeg.Encoder{preset: :fast, crf: 30},
-        sink: %Membrane.File.Sink{location: out_path}
+    Pipeline.start_link_supervised!(
+      structure: [
+        child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
+        |> child(:parser, H264.FFmpeg.Parser)
+        |> child(:decoder, H264.FFmpeg.Decoder)
+        |> child(:encoder, %H264.FFmpeg.Encoder{preset: :fast, crf: 30})
+        |> child(:sink, %Membrane.File.Sink{location: out_path})
       ]
-    })
+    )
   end
 
   defp perform_test(filename, tmp_dir, timeout) do
     in_path = "../fixtures/input-#{filename}.h264" |> Path.expand(__DIR__)
     out_path = Path.join(tmp_dir, "output-transcode-#{filename}.h264")
 
-    assert {:ok, pid} = make_pipeline(in_path, out_path)
-    assert_pipeline_playback_changed(pid, :prepared, :playing)
+    pid = make_pipeline(in_path, out_path)
+    assert_pipeline_play(pid)
     assert_end_of_stream(pid, :sink, :input, timeout)
-
-    Pipeline.terminate(pid, blocking?: true)
   end
 
   describe "TranscodingPipeline should" do

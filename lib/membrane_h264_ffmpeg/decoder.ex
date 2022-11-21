@@ -19,7 +19,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   @no_pts -9_223_372_036_854_775_808
 
   def_options use_shm?: [
-                type: :boolean,
+                spec: boolean(),
                 desciption:
                   "If true, native decoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
                 default: false
@@ -28,26 +28,26 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    caps: {H264, stream_format: :byte_stream, alignment: :au}
+    accepted_format: %H264{stream_format: :byte_stream, alignment: :au}
 
   def_output_pad :output,
     demand_mode: :auto,
-    caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
+    accepted_format: %RawVideo{pixel_format: format, aligned: true} when format in [:I420, :I422]
 
   @impl true
-  def handle_init(opts) do
-    state = %{decoder_ref: nil, caps_changed: false, use_shm?: opts.use_shm?}
-    {:ok, state}
+  def handle_init(_ctx, opts) do
+    state = %{decoder_ref: nil, stream_format_changed: false, use_shm?: opts.use_shm?}
+    {[], state}
   end
 
   @impl true
-  def handle_stopped_to_prepared(_ctx, state) do
+  def handle_setup(_ctx, state) do
     case Native.create() do
       {:ok, decoder_ref} ->
-        {:ok, %{state | decoder_ref: decoder_ref}}
+        {[], %{state | decoder_ref: decoder_ref}}
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Error: #{inspect(reason)}"
     end
   end
 
@@ -67,25 +67,25 @@ defmodule Membrane.H264.FFmpeg.Decoder do
          ) do
       {:ok, pts_list_h264_base, frames} ->
         bufs = wrap_frames(pts_list_h264_base, frames)
-        in_caps = ctx.pads.input.caps
-        {caps, state} = update_caps_if_needed(state, in_caps)
+        in_stream_format = ctx.pads.input.stream_format
+        {stream_format, state} = update_stream_format_if_needed(state, in_stream_format)
 
-        {{:ok, caps ++ bufs}, state}
+        {stream_format ++ bufs, state}
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Error: #{inspect(reason)}"
     end
   end
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
-    # only redeclaring decoder - new caps will be generated in handle_process, after decoding key_frame
+  def handle_stream_format(:input, _stream_format, _ctx, state) do
+    # only redeclaring decoder - new stream_format will be generated in handle_process, after decoding key_frame
     case Native.create() do
       {:ok, decoder_ref} ->
-        {:ok, %{state | decoder_ref: decoder_ref, caps_changed: true}}
+        {[], %{state | decoder_ref: decoder_ref, stream_format_changed: true}}
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Error: #{inspect(reason)}"
     end
   end
 
@@ -94,16 +94,11 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     with {:ok, best_effort_pts_list, frames} <-
            Native.flush(state.use_shm?, state.decoder_ref),
          bufs <- wrap_frames(best_effort_pts_list, frames) do
-      actions = bufs ++ [end_of_stream: :output, notify: {:end_of_stream, :input}]
-      {{:ok, actions}, state}
+      actions = bufs ++ [end_of_stream: :output, notify_parent: {:end_of_stream, :input}]
+      {actions, state}
     else
-      {:error, reason} -> {{:error, reason}, state}
+      {:error, reason} -> raise "Error: #{inspect(reason)}"
     end
-  end
-
-  @impl true
-  def handle_prepared_to_stopped(_ctx, state) do
-    {:ok, %{state | decoder_ref: nil}}
   end
 
   defp wrap_frames([], []), do: []
@@ -116,19 +111,23 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     |> then(&[buffer: {:output, &1}])
   end
 
-  defp update_caps_if_needed(%{caps_changed: true, decoder_ref: decoder_ref} = state, in_caps) do
-    {[caps: {:output, generate_caps(in_caps, decoder_ref)}], %{state | caps_changed: false}}
+  defp update_stream_format_if_needed(
+         %{stream_format_changed: true, decoder_ref: decoder_ref} = state,
+         in_stream_format
+       ) do
+    {[stream_format: {:output, generate_stream_format(in_stream_format, decoder_ref)}],
+     %{state | stream_format_changed: false}}
   end
 
-  defp update_caps_if_needed(%{caps_changed: false} = state, _in_caps) do
+  defp update_stream_format_if_needed(%{stream_format_changed: false} = state, _in_stream_format) do
     {[], state}
   end
 
-  defp generate_caps(input_caps, decoder_ref) do
+  defp generate_stream_format(input_stream_format, decoder_ref) do
     {:ok, width, height, pix_fmt} = Native.get_metadata(decoder_ref)
 
     framerate =
-      case input_caps do
+      case input_stream_format do
         nil -> {0, 1}
         %H264{framerate: in_framerate} -> in_framerate
       end
