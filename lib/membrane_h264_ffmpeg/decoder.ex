@@ -36,7 +36,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_init(_ctx, opts) do
-    state = %{decoder_ref: nil, stream_format_changed: false, use_shm?: opts.use_shm?}
+    state = %{decoder_ref: nil, format_changed?: false, use_shm?: opts.use_shm?}
     {[], state}
   end
 
@@ -82,7 +82,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     # only redeclaring decoder - new stream_format will be generated in handle_process, after decoding key_frame
     case Native.create() do
       {:ok, decoder_ref} ->
-        {[], %{state | decoder_ref: decoder_ref, stream_format_changed: true}}
+        {[], %{state | decoder_ref: decoder_ref, format_changed?: true}}
 
       {:error, reason} ->
         raise "Error: #{inspect(reason)}"
@@ -94,7 +94,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
     with {:ok, best_effort_pts_list, frames} <-
            Native.flush(state.use_shm?, state.decoder_ref),
          bufs <- wrap_frames(best_effort_pts_list, frames) do
-      actions = bufs ++ [end_of_stream: :output, notify_parent: {:end_of_stream, :input}]
+      actions = bufs ++ [end_of_stream: :output]
       {actions, state}
     else
       {:error, reason} -> raise "Error: #{inspect(reason)}"
@@ -112,14 +112,14 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   end
 
   defp update_stream_format_if_needed(
-         %{stream_format_changed: true, decoder_ref: decoder_ref} = state,
+         %{format_changed?: true, decoder_ref: decoder_ref} = state,
          in_stream_format
        ) do
     {[stream_format: {:output, generate_stream_format(in_stream_format, decoder_ref)}],
-     %{state | stream_format_changed: false}}
+     %{state | format_changed?: false}}
   end
 
-  defp update_stream_format_if_needed(%{stream_format_changed: false} = state, _in_stream_format) do
+  defp update_stream_format_if_needed(%{format_changed?: false} = state, _in_stream_format) do
     {[], state}
   end
 

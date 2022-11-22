@@ -33,7 +33,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    accepted_format: _any
+    accepted_format: %format{} when format in [Membrane.RemoteStream, H264.RemoteStream]
 
   def_output_pad :output,
     demand_mode: :auto,
@@ -99,7 +99,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               max_frame_reorder: [
-                spec: integer(),
+                spec: non_neg_integer(),
                 default: 15,
                 description: """
                 Defines the maximum expected number of consequent b-frames in the stream.
@@ -270,9 +270,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_stream_format(:input, %Membrane.H264.RemoteStream{}, ctx, _state)
-      when ctx.pads.input.start_of_stream?,
-      do:
-        raise("Cannot send Membrane.H264.RemoteStream stream_format after the stream has started")
+      when ctx.pads.input.start_of_stream? do
+        raise "Cannot handle Membrane.H264.RemoteStream format after the stream has started"
+  end
 
   @impl true
   def handle_stream_format(:input, %Membrane.H264.RemoteStream{} = stream_format, _ctx, state) do

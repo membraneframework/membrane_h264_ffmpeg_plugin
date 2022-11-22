@@ -50,7 +50,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 in roughly half the bitrate / file size, while -6 leads
                 to roughly twice the bitrate.
                 """,
-                spec: integer(),
+                spec: 0..63,
                 default: @default_crf
               ],
               preset: [
@@ -79,13 +79,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 default: false
               ],
               max_b_frames: [
-                spec: integer(),
+                spec: non_neg_integer() | nil,
                 description:
                   "Maximum number of B-frames between non-B-frames. Set to 0 to encode video without b-frames",
                 default: nil
               ],
               gop_size: [
-                spec: integer(),
+                spec: non_neg_integer() | nil,
                 description: "Number of frames in a group of pictures.",
                 default: nil
               ]
@@ -150,7 +150,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def handle_end_of_stream(:input, _ctx, state) do
     case flush_encoder_if_exists(state) do
       {:ok, buffers} ->
-        actions = buffers ++ [end_of_stream: :output, notify_parent: {:end_of_stream, :input}]
+        actions = buffers ++ [end_of_stream: :output]
         {actions, state}
 
       {:error, reason} ->
