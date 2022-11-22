@@ -116,7 +116,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
         {bufs, state}
 
       {:error, reason} ->
-        raise "Error: #{inspect(reason)}"
+        raise "Native encoder failed to encode the payload: #{inspect(reason)}"
     end
   end
 
@@ -124,7 +124,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def handle_stream_format(:input, stream_format, _ctx, state) do
     {framerate_num, framerate_denom} = stream_format.framerate
 
-    with {:ok, buffers} <- flush_encoder_if_exists(state),
+    with buffers <- flush_encoder_if_exists(state),
          {:ok, new_encoder_ref} <-
            Native.create(
              stream_format.width,
@@ -142,30 +142,24 @@ defmodule Membrane.H264.FFmpeg.Encoder do
       actions = buffers ++ [stream_format: stream_format]
       {actions, %{state | encoder_ref: new_encoder_ref}}
     else
-      {:error, reason} -> raise "Error: #{inspect(reason)}"
+      {:error, reason} -> raise "Failed to create native encoder: #{inspect(reason)}"
     end
   end
 
   @impl true
   def handle_end_of_stream(:input, _ctx, state) do
-    case flush_encoder_if_exists(state) do
-      {:ok, buffers} ->
-        actions = buffers ++ [end_of_stream: :output]
-        {actions, state}
-
-      {:error, reason} ->
-        raise "Error: #{inspect(reason)}"
-    end
+    buffers = flush_encoder_if_exists(state)
+    actions = buffers ++ [end_of_stream: :output]
+    {actions, state}
   end
 
-  defp flush_encoder_if_exists(%{encoder_ref: nil}) do
-    {:ok, []}
-  end
+  defp flush_encoder_if_exists(%{encoder_ref: nil}), do: []
 
   defp flush_encoder_if_exists(%{encoder_ref: encoder_ref, use_shm?: use_shm?}) do
     with {:ok, dts_list, frames} <- Native.flush(use_shm?, encoder_ref) do
-      buffers = wrap_frames(dts_list, frames)
-      {:ok, buffers}
+      wrap_frames(dts_list, frames)
+    else
+      {:error, reason} -> raise "Native encoder failed to flush: #{inspect(reason)}"
     end
   end
 

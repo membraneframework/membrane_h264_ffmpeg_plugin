@@ -42,13 +42,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_setup(_ctx, state) do
-    case Native.create() do
-      {:ok, decoder_ref} ->
-        {[], %{state | decoder_ref: decoder_ref}}
-
-      {:error, reason} ->
-        raise "Error: #{inspect(reason)}"
-    end
+    {[], %{state | decoder_ref: Native.create!()}}
   end
 
   @impl true
@@ -73,20 +67,14 @@ defmodule Membrane.H264.FFmpeg.Decoder do
         {stream_format ++ bufs, state}
 
       {:error, reason} ->
-        raise "Error: #{inspect(reason)}"
+        raise "Native decoder failed to decode the payload: #{inspect(reason)}"
     end
   end
 
   @impl true
   def handle_stream_format(:input, _stream_format, _ctx, state) do
     # only redeclaring decoder - new stream_format will be generated in handle_process, after decoding key_frame
-    case Native.create() do
-      {:ok, decoder_ref} ->
-        {[], %{state | decoder_ref: decoder_ref, format_changed?: true}}
-
-      {:error, reason} ->
-        raise "Error: #{inspect(reason)}"
-    end
+    {[], %{state | decoder_ref: Native.create!(), format_changed?: true}}
   end
 
   @impl true
@@ -97,7 +85,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
       actions = bufs ++ [end_of_stream: :output]
       {actions, state}
     else
-      {:error, reason} -> raise "Error: #{inspect(reason)}"
+      {:error, reason} -> raise "Native decoder failed to flush: #{inspect(reason)}"
     end
   end
 

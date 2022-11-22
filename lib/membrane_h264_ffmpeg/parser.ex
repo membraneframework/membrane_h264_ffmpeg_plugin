@@ -130,7 +130,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         {[], %{state | parser_ref: parser_ref}}
 
       {:error, reason} ->
-        raise "Error: #{inspect(reason)}"
+        raise "Failed to create native parser: #{inspect(reason)}"
     end
   end
 
@@ -191,7 +191,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} ->
         metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
 
-        {:ok, profile} = Native.get_profile(state.parser_ref)
+        profile = Native.get_profile!(state.parser_ref)
         state = %{state | profile_has_b_frames?: profile_has_b_frames?(profile)}
 
         {bufs, state} =
@@ -207,7 +207,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         parse_resolution_changes(state, bufs, resolution_changes)
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Native parser failed to parse the payload: #{inspect(reason)}"
     end
   end
 
@@ -271,7 +271,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   @impl true
   def handle_stream_format(:input, %Membrane.H264.RemoteStream{}, ctx, _state)
       when ctx.pads.input.start_of_stream? do
-        raise "Cannot handle Membrane.H264.RemoteStream format after the stream has started"
+    raise "Cannot handle Membrane.H264.RemoteStream format after the stream has started"
   end
 
   @impl true
@@ -329,6 +329,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
       bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
       actions = stream_format_actions ++ [buffer: {:output, bufs}, end_of_stream: :output]
       {actions, state}
+    else
+      {:error, reason} -> raise "Native parser failed to flush: #{inspect(reason)}"
     end
   end
 
@@ -498,7 +500,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   defp mk_stream_format(state, width, height) do
-    {:ok, profile} = Native.get_profile(state.parser_ref)
+    profile = Native.get_profile!(state.parser_ref)
 
     %H264{
       width: width,
