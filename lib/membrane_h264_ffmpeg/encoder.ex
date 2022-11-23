@@ -104,16 +104,16 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
     %{encoder_ref: encoder_ref, use_shm?: use_shm?} = state
-    pts = buffer.pts || 0
+    pts = Common.to_h264_time_base_truncated(buffer.pts)
 
     case Native.encode(
            buffer.payload,
-           Common.to_h264_time_base_truncated(pts),
+           pts,
            use_shm?,
            encoder_ref
          ) do
-      {:ok, dts_list, frames} ->
-        bufs = wrap_frames(dts_list, frames)
+      {:ok, dts_list, pts_list, frames} ->
+        bufs = wrap_frames(dts_list, pts_list, frames)
 
         {{:ok, bufs}, state}
 
@@ -170,18 +170,22 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   defp flush_encoder_if_exists(%{encoder_ref: encoder_ref, use_shm?: use_shm?}) do
-    with {:ok, dts_list, frames} <- Native.flush(use_shm?, encoder_ref) do
-      buffers = wrap_frames(dts_list, frames)
+    with {:ok, dts_list, pts_list, frames} <- Native.flush(use_shm?, encoder_ref) do
+      buffers = wrap_frames(dts_list, pts_list, frames)
       {:ok, buffers}
     end
   end
 
-  defp wrap_frames([], []), do: []
+  defp wrap_frames([], [], []), do: []
 
-  defp wrap_frames(dts_list, frames) do
-    Enum.zip(dts_list, frames)
-    |> Enum.map(fn {dts, frame} ->
-      %Buffer{dts: Common.to_membrane_time_base_truncated(dts), payload: frame}
+  defp wrap_frames(dts_list, pts_list, frames) do
+    Enum.zip([dts_list, pts_list, frames])
+    |> Enum.map(fn {dts, pts, frame} ->
+      %Buffer{
+        pts: Common.to_membrane_time_base_truncated(pts),
+        dts: Common.to_membrane_time_base_truncated(dts),
+        payload: frame
+      }
     end)
     |> then(&[buffer: {:output, &1}])
   end

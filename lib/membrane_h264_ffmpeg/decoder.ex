@@ -16,8 +16,6 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   alias Membrane.H264.FFmpeg.Common
   alias Membrane.RawVideo
 
-  @no_pts -9_223_372_036_854_775_808
-
   def_options use_shm?: [
                 type: :boolean,
                 desciption:
@@ -55,8 +53,8 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   def handle_process(:input, buffer, ctx, state) do
     %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
 
-    dts = if(buffer.dts, do: Common.to_h264_time_base_truncated(buffer.dts), else: @no_pts)
-    pts = if(buffer.pts, do: Common.to_h264_time_base_truncated(buffer.pts), else: @no_pts)
+    dts = Common.to_h264_time_base_truncated(buffer.dts)
+    pts = Common.to_h264_time_base_truncated(buffer.pts)
 
     case Native.decode(
            buffer.payload,
