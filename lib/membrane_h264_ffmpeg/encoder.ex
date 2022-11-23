@@ -18,8 +18,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   alias Membrane.H264.FFmpeg.Common
   alias Membrane.RawVideo
 
-  @no_pts -9_223_372_036_854_775_808
-
   def_input_pad :input,
     demand_mode: :auto,
     demand_unit: :buffers,
@@ -106,7 +104,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   @impl true
   def handle_process(:input, buffer, _ctx, state) do
     %{encoder_ref: encoder_ref, use_shm?: use_shm?} = state
-    pts = if is_nil(buffer.pts), do: @no_pts, else: Common.to_h264_time_base_truncated(buffer.pts)
+    pts = Common.to_h264_time_base_truncated(buffer.pts)
 
     case Native.encode(
            buffer.payload,

@@ -3,10 +3,13 @@ defmodule Membrane.H264.FFmpeg.Common do
   use Ratio
   @h264_time_base 90_000
   @no_pts -9_223_372_036_854_775_808
+
   @doc """
   Converts time in membrane time base (1 [ns]) to h264 time base (1/90_000 [s])
   """
-  @spec to_h264_time_base_truncated(number | Ratio.t()) :: integer
+  @spec to_h264_time_base_truncated(number | Ratio.t() | nil) :: integer
+  def to_h264_time_base_truncated(nil), do: @no_pts
+
   def to_h264_time_base_truncated(timestamp) do
     (timestamp * @h264_time_base / Membrane.Time.second()) |> Ratio.trunc()
   end

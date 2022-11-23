@@ -14,16 +14,23 @@ defmodule Encoder.NativeTest do
     assert <<frame::bytes-size(115_200), _tail::binary>> = file
 
     Enum.each(
-      0..4,
-      &Enc.encode(frame, Common.to_h264_time_base_truncated(seconds(&1)), false, ref)
+      0..5,
+      fn timestamp ->
+        assert {:ok, [], [], []} ==
+                 Enc.encode(
+                   frame,
+                   Common.to_h264_time_base_truncated(seconds(timestamp)),
+                   false,
+                   ref
+                 )
+      end
     )
 
-    assert {:ok, _dts_list, _pts, _frames} =
-             Enc.encode(frame, Common.to_h264_time_base_truncated(seconds(5)), false, ref)
+    assert {:ok, dts_list, pts_list, frames} = Enc.flush(false, ref)
+    assert Enum.all?([dts_list, pts_list, frames], &(length(&1) == 6))
 
-    assert {:ok, _dts, pts, _frames} = Enc.flush(false, ref)
+    expected_timestamps = Enum.map(0..5, &Common.to_h264_time_base_truncated(seconds(&1)))
 
-    assert Enum.sort(Enum.map(pts, &Common.to_membrane_time_base_truncated(&1))) ==
-             Enum.map(0..5, &seconds(&1))
+    assert Enum.sort(pts_list) == expected_timestamps
   end
 end
