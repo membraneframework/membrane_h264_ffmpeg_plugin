@@ -37,7 +37,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   def_output_pad :output,
     demand_mode: :auto,
-    accepted_format: %H264{stream_format: :byte_stream}
+    accepted_format: %H264{}
 
   def_options framerate: [
                 spec: H264.framerate_t() | nil,
@@ -508,13 +508,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
       framerate: state.framerate || {0, 1},
       alignment: state.alignment,
       nalu_in_metadata?: state.attach_nalus?,
-      stream_format: :byte_stream,
       profile: profile
     }
   end
 
   defp profile_has_b_frames?(profile) do
-    profile not in ["constrained_baseline", "baseline"]
+    profile not in [:constrained_baseline, :baseline]
   end
 
   defp find_parameters(data, looking_for \\ [:sps, :pps])

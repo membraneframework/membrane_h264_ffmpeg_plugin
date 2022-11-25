@@ -51,12 +51,11 @@ defmodule Decoding.Pipeline do
 
   @impl true
   def handle_init(_ctx, _opts) do
-    structure = [
+    structure = 
       child(:source, %Membrane.File.Source{chunk_size: 40_960, location: "input.h264"})
       |> child(:parser, %H264.FFmpeg.Parser{framerate: {30, 1}})
       |> child(:decoder, H264.FFmpeg.Decoder)
       |> child(:sink,  %Membrane.File.Sink{location: "output.raw"})
-    ]
 
     {[spec: structure], %{}}
   end
@@ -73,12 +72,11 @@ defmodule Encoding.Pipeline do
 
   @impl true
   def handle_init(_) do
-    structure = [
+    structure =
       child(:source, %Membrane.File.Source{chunk_size: 40_960, location: "input.raw"})
       |> child(:parser, %Membrane.RawVideo.Parser{width: 1280, height: 720, pixel_format: :I420})
       |> child(:encoder, %Membrane.H264.FFmpeg.Encoder{preset: :fast, crf: 30})
       |> child(:sink, %Membrane.File.Sink{location: "output.h264"})
-    ]
 
     {[spec: structure], %{}}
   end

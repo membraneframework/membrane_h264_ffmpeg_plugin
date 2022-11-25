@@ -16,12 +16,11 @@ defmodule EncoderTest do
 
   defp make_pipeline(in_path, out_path, width, height, format) do
     Pipeline.start_link_supervised!(
-      structure: [
+      structure:
         child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
         |> child(:praser, %RawVideo.Parser{width: width, height: height, pixel_format: format})
         |> child(:encoder, %H264.FFmpeg.Encoder{preset: :fast, crf: 30})
         |> child(:sink, %Membrane.File.Sink{location: out_path})
-      ]
     )
   end
 
