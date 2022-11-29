@@ -6,7 +6,6 @@ defmodule Membrane.H264.FFmpeg.Parser.Native do
   def get_profile!(parser_ref) do
     case get_profile(parser_ref) do
       {:error, reason} -> raise "Failed to obtain profile from native parser: #{inspect(reason)}"
-      {:ok, :unknown} -> raise "Unknown H264 profile!"
       {:ok, profile} -> profile
     end
   end
