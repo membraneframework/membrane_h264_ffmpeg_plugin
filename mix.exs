@@ -42,7 +42,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       {:unifex, "~> 1.0"},
       {:membrane_core, "~> 0.11.0"},
       {:membrane_common_c, "~> 0.14.0"},
-      {:membrane_h264_format, "~> 0.3.0"},
+      {:membrane_h264_format, "~> 0.4.0"},
       {:membrane_raw_video_format, "~> 0.2.0"},
       {:ratio, "~> 2.4.0"},
       {:ex_doc, "~> 0.28", only: :dev, runtime: false},

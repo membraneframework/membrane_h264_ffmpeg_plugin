@@ -14,7 +14,7 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
     decoder_configuration_record:
       <<1, 2, 131, 242, 255, 225, 0, 28, 103, 100, 0, 31, 172, 217, 64, 80, 5, 187, 1, 106, 2, 2,
         2, 128, 0, 0, 3, 0, 128, 0, 0, 30, 71, 140, 24, 203, 1, 0, 5, 104, 235, 236, 178, 44>>,
-    stream_format: :byte_stream
+    alignment: :nalu
   }
 
   setup_all do

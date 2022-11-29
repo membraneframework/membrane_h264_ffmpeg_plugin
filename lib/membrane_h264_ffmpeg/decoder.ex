@@ -26,7 +26,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    accepted_format: %H264{stream_format: :byte_stream, alignment: :au}
+    accepted_format: %H264{alignment: :au}
 
   def_output_pad :output,
     demand_mode: :auto,

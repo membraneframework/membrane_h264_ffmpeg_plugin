@@ -25,7 +25,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   def_output_pad :output,
     demand_mode: :auto,
-    accepted_format: %H264{stream_format: :byte_stream, alignment: :au}
+    accepted_format: %H264{alignment: :au}
 
   @default_crf 23
 
@@ -184,8 +184,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
        framerate: stream_format.framerate,
        height: stream_format.height,
        width: stream_format.width,
-       profile: state.profile,
-       stream_format: :byte_stream
+       profile: state.profile
      }}
   end
 end
