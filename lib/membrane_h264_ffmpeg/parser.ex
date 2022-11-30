@@ -14,9 +14,9 @@ defmodule Membrane.H264.FFmpeg.Parser do
   and `attach_nalus?` options for details.
 
   This Parser is also capable of handling out-of-band parameters in the form of Decoder Configuration Record.
-  To inject it, simply send `t:Membrane.H264.RemoteStream.t/0` caps containing the Decoder Configuration Record to this element.
+  To inject it, simply send `t:Membrane.H264.RemoteStream.t/0` stream_format containing the Decoder Configuration Record to this element.
   There are however some limitations:
-  - `t:Membrane.H264.RemoteStream.t/0` caps need to be send only before the first buffer.
+  - `t:Membrane.H264.RemoteStream.t/0` stream_format needs to be send only before the first buffer.
     Sending them during the stream will cause an error
   - SPS and PPS will be extracted from Decoder Configuration Record and added to the payload of the very first buffer without any checks of in-band parameters.
     This might result in duplicated SPS and PPS. It shouldn't be a problem, unless you send an incorrect Decoder Configuration Record that doesn't match the stream.
@@ -33,14 +33,13 @@ defmodule Membrane.H264.FFmpeg.Parser do
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    caps: :any
+    accepted_format: %format{} when format in [Membrane.RemoteStream, H264.RemoteStream]
 
   def_output_pad :output,
     demand_mode: :auto,
-    caps: {H264, stream_format: :byte_stream}
+    accepted_format: %H264{}
 
   def_options framerate: [
-                type: :framerate,
                 spec: H264.framerate_t() | nil,
                 default: nil,
                 description: """
@@ -48,7 +47,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               sps: [
-                type: :binary,
+                spec: binary(),
                 default: <<>>,
                 description: """
                 Sequence Parameter Set NAL unit - if absent in the stream, should
@@ -56,7 +55,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               pps: [
-                type: :binary,
+                spec: binary(),
                 default: <<>>,
                 description: """
                 Picture Parameter Set NAL unit - if absent in the stream, should
@@ -64,7 +63,6 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               alignment: [
-                type: :atom,
                 spec: :au | :nal,
                 default: :au,
                 description: """
@@ -79,7 +77,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               attach_nalus?: [
-                type: :boolean,
+                spec: boolean(),
                 default: false,
                 description: """
                 Determines whether to attach NAL units list to the metadata when `alignment` option
@@ -87,21 +85,21 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               skip_until_keyframe?: [
-                type: :boolean,
+                spec: boolean(),
                 default: false,
                 description: """
                 Determines whether to drop the stream until the first key frame is received.
                 """
               ],
               skip_until_parameters?: [
-                type: :boolean,
+                spec: boolean(),
                 default: true,
                 description: """
                 Determines whether to drop the stream until the first set of SPS and PPS is received.
                 """
               ],
               max_frame_reorder: [
-                type: :integer,
+                spec: non_neg_integer(),
                 default: 15,
                 description: """
                 Defines the maximum expected number of consequent b-frames in the stream.
@@ -109,11 +107,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
               ]
 
   @impl true
-  def handle_init(opts) do
+  def handle_init(_ctx, opts) do
     state =
       Map.from_struct(opts)
       |> Map.merge(%{
-        pending_caps: nil,
+        pending_stream_format: nil,
         parser_ref: nil,
         partial_frame: <<>>,
         frame_prefix: opts.sps <> opts.pps,
@@ -122,28 +120,28 @@ defmodule Membrane.H264.FFmpeg.Parser do
         profile_has_b_frames?: nil
       })
 
-    {:ok, state}
+    {[], state}
   end
 
   @impl true
-  def handle_stopped_to_prepared(_ctx, state) do
+  def handle_setup(_ctx, state) do
     case Native.create() do
       {:ok, parser_ref} ->
-        {:ok, %{state | parser_ref: parser_ref}}
+        {[], %{state | parser_ref: parser_ref}}
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Failed to create native parser: #{inspect(reason)}"
     end
   end
 
   @impl true
-  def handle_prepared_to_playing(_ctx, %{skip_until_keyframe: true} = state) do
-    {{:ok, event: {:input, %Membrane.KeyframeRequestEvent{}}}, state}
+  def handle_playing(_ctx, %{skip_until_keyframe: true} = state) do
+    {[event: {:input, %Membrane.KeyframeRequestEvent{}}], state}
   end
 
   @impl true
-  def handle_prepared_to_playing(_ctx, state) do
-    {:ok, state}
+  def handle_playing(_ctx, state) do
+    {[], state}
   end
 
   @impl true
@@ -159,7 +157,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
     case find_parameters(parsed) do
       {:error, :not_enough_buffers} ->
-        {:ok, %{state | acc: data}}
+        {[], %{state | acc: data}}
 
       {:ok, buffers} ->
         contents =
@@ -193,7 +191,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       {:ok, sizes, decoding_order_numbers, presentation_order_numbers, resolution_changes} ->
         metadata = %{buffer_metadata: buffer.metadata, pts: buffer.pts, dts: buffer.dts}
 
-        {:ok, profile} = Native.get_profile(state.parser_ref)
+        profile = Native.get_profile!(state.parser_ref)
         state = %{state | profile_has_b_frames?: profile_has_b_frames?(profile)}
 
         {bufs, state} =
@@ -206,15 +204,14 @@ defmodule Membrane.H264.FFmpeg.Parser do
             state
           )
 
-        {actions, state} = parse_resolution_changes(state, bufs, resolution_changes)
-        {{:ok, actions}, state}
+        parse_resolution_changes(state, bufs, resolution_changes)
 
       {:error, reason} ->
-        {{:error, reason}, state}
+        raise "Native parser failed to parse the payload: #{inspect(reason)}"
     end
   end
 
-  # analyze resolution changes and generate appropriate caps before corresponding buffers
+  # analyze resolution changes and generate appropriate stream_format before corresponding buffers
   defp parse_resolution_changes(state, bufs, resolution_changes, acc \\ [])
 
   defp parse_resolution_changes(state, [], [], []) do
@@ -224,26 +221,26 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp parse_resolution_changes(state, bufs, [], acc) do
     bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
 
-    caps =
-      if state.pending_caps != nil do
-        [caps: {:output, state.pending_caps}]
+    stream_format =
+      if state.pending_stream_format != nil do
+        [stream_format: {:output, state.pending_stream_format}]
       else
         []
       end
 
-    actions = Enum.reverse([buffer: {:output, bufs}] ++ caps ++ acc)
+    actions = Enum.reverse([buffer: {:output, bufs}] ++ stream_format ++ acc)
 
-    {actions, %{state | pending_caps: nil}}
+    {actions, %{state | pending_stream_format: nil}}
   end
 
   defp parse_resolution_changes(state, bufs, [meta | resolution_changes], acc) do
     {old_bufs, next_bufs} = Enum.split_while(bufs, fn {au, _buf} -> au < meta.index end)
-    next_caps = mk_caps(state, meta.width, meta.height)
+    next_stream_format = mk_stream_format(state, meta.width, meta.height)
 
-    {caps, state} =
+    {stream_format, state} =
       if old_bufs == [],
-        do: {[], %{state | pending_caps: next_caps}},
-        else: {[caps: {:output, next_caps}], state}
+        do: {[], %{state | pending_stream_format: next_stream_format}},
+        else: {[stream_format: {:output, next_stream_format}], state}
 
     buffers_before_change =
       case old_bufs do
@@ -255,9 +252,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
           [buffer: {:output, old_bufs}]
       end
 
-    {pending_caps, state} =
-      if state.pending_caps != nil and buffers_before_change != [] do
-        {[caps: {:output, state.pending_caps}], %{state | pending_caps: nil}}
+    {pending_stream_format, state} =
+      if state.pending_stream_format != nil and buffers_before_change != [] do
+        {[stream_format: {:output, state.pending_stream_format}],
+         %{state | pending_stream_format: nil}}
       else
         {[], state}
       end
@@ -266,19 +264,22 @@ defmodule Membrane.H264.FFmpeg.Parser do
       state,
       next_bufs,
       resolution_changes,
-      caps ++ buffers_before_change ++ pending_caps ++ acc
+      stream_format ++ buffers_before_change ++ pending_stream_format ++ acc
     )
   end
 
   @impl true
-  def handle_caps(:input, %Membrane.H264.RemoteStream{}, ctx, _state)
-      when ctx.pads.input.start_of_stream?,
-      do: raise("Cannot send Membrane.H264.RemoteStream caps after the stream has started")
+  def handle_stream_format(:input, %Membrane.H264.RemoteStream{}, ctx, _state)
+      when ctx.pads.input.start_of_stream? do
+    raise "Cannot handle Membrane.H264.RemoteStream format after the stream has started"
+  end
 
   @impl true
-  def handle_caps(:input, %Membrane.H264.RemoteStream{} = caps, _ctx, state) do
+  def handle_stream_format(:input, %Membrane.H264.RemoteStream{} = stream_format, _ctx, state) do
     {:ok, %{sps: sps, pps: pps}} =
-      Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(caps.decoder_configuration_record)
+      Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(
+        stream_format.decoder_configuration_record
+      )
 
     frame_prefix =
       Enum.concat([[state.frame_prefix || <<>>], sps, pps])
@@ -286,18 +287,18 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
     if state.skip_until_parameters? do
       Membrane.Logger.warn("""
-      Flag skip_until_parameters? is not compatible with Membrane.H264.RemoteStream caps.
+      Flag skip_until_parameters? is not compatible with Membrane.H264.RemoteStream stream_format.
       It is being automatically disabled.
       """)
     end
 
-    {:ok, %{state | frame_prefix: frame_prefix, skip_until_parameters?: false}}
+    {[], %{state | frame_prefix: frame_prefix, skip_until_parameters?: false}}
   end
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
-    # ignoring caps, new ones will be generated in handle_process
-    {:ok, state}
+  def handle_stream_format(:input, _stream_format, _ctx, state) do
+    # ignoring stream_format, new ones will be generated in handle_process
+    {[], state}
   end
 
   @impl true
@@ -318,18 +319,19 @@ defmodule Membrane.H264.FFmpeg.Parser do
         Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
       end
 
-      caps = mk_caps(state, resolution.width, resolution.height)
-      caps_actions = if caps != ctx.pads.output.caps, do: [caps: {:output, caps}], else: []
+      stream_format = mk_stream_format(state, resolution.width, resolution.height)
+
+      stream_format_actions =
+        if stream_format != ctx.pads.output.stream_format,
+          do: [stream_format: {:output, stream_format}],
+          else: []
 
       bufs = Enum.map(bufs, fn {_au, buf} -> buf end)
-      actions = caps_actions ++ [buffer: {:output, bufs}, end_of_stream: :output]
-      {{:ok, actions}, state}
+      actions = stream_format_actions ++ [buffer: {:output, bufs}, end_of_stream: :output]
+      {actions, state}
+    else
+      {:error, reason} -> raise "Native parser failed to flush: #{inspect(reason)}"
     end
-  end
-
-  @impl true
-  def handle_prepared_to_stopped(_ctx, state) do
-    {:ok, %{state | parser_ref: nil}}
   end
 
   defp parse_access_units(
@@ -497,8 +499,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
     )
   end
 
-  defp mk_caps(state, width, height) do
-    {:ok, profile} = Native.get_profile(state.parser_ref)
+  defp mk_stream_format(state, width, height) do
+    profile = Native.get_profile!(state.parser_ref)
 
     %H264{
       width: width,
@@ -506,13 +508,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
       framerate: state.framerate || {0, 1},
       alignment: state.alignment,
       nalu_in_metadata?: state.attach_nalus?,
-      stream_format: :byte_stream,
       profile: profile
     }
   end
 
   defp profile_has_b_frames?(profile) do
-    profile not in ["constrained_baseline", "baseline"]
+    profile not in [:constrained_baseline, :baseline]
   end
 
   defp find_parameters(data, looking_for \\ [:sps, :pps])

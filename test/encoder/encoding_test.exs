@@ -15,34 +15,21 @@ defmodule EncoderTest do
   end
 
   defp make_pipeline(in_path, out_path, width, height, format) do
-    children = [
-      file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
-      parser: %RawVideo.Parser{width: width, height: height, pixel_format: format},
-      encoder: %H264.FFmpeg.Encoder{preset: :fast, crf: 30},
-      sink: %Membrane.File.Sink{location: out_path}
-    ]
-
-    options = [
-      children: children,
-      links: [
-        link(:file_src)
-        |> to(:parser)
-        |> to(:encoder)
-        |> to(:sink)
-      ]
-    ]
-
-    Pipeline.start_link(options)
+    Pipeline.start_link_supervised!(
+      structure:
+        child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
+        |> child(:praser, %RawVideo.Parser{width: width, height: height, pixel_format: format})
+        |> child(:encoder, %H264.FFmpeg.Encoder{preset: :fast, crf: 30})
+        |> child(:sink, %Membrane.File.Sink{location: out_path})
+    )
   end
 
   defp perform_test(filename, tmp_dir, width, height, format \\ :I420) do
     {in_path, out_path} = prepare_paths(filename, tmp_dir)
 
-    assert {:ok, pid} = make_pipeline(in_path, out_path, width, height, format)
-    assert_pipeline_playback_changed(pid, :prepared, :playing)
+    pid = make_pipeline(in_path, out_path, width, height, format)
+    assert_pipeline_play(pid)
     assert_end_of_stream(pid, :sink, :input, 4000)
-
-    Pipeline.terminate(pid, blocking?: true)
   end
 
   describe "EncodingPipeline should" do

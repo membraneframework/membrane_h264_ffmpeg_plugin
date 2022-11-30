@@ -19,35 +19,23 @@ defmodule DecoderTest do
   end
 
   defp make_pipeline(in_path, out_path) do
-    Pipeline.start_link(%Pipeline.Options{
-      elements: [
-        file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
-        parser: H264.FFmpeg.Parser,
-        decoder: H264.FFmpeg.Decoder,
-        sink: %Membrane.File.Sink{location: out_path}
-      ]
-    })
+    Pipeline.start_link_supervised!(
+      structure:
+        child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
+        |> child(:parser, H264.FFmpeg.Parser)
+        |> child(:decoder, H264.FFmpeg.Decoder)
+        |> child(:sink, %Membrane.File.Sink{location: out_path})
+    )
   end
 
   defp make_pipeline_with_test_sink(in_path) do
-    children = [
-      file_src: %Membrane.File.Source{chunk_size: 40_960, location: in_path},
-      parser: %H264.FFmpeg.Parser{framerate: {@framerate, 1}},
-      decoder: H264.FFmpeg.Decoder,
-      sink: Testing.Sink
-    ]
-
-    options = [
-      children: children,
-      links: [
-        link(:file_src)
-        |> to(:parser)
-        |> to(:decoder)
-        |> to(:sink)
-      ]
-    ]
-
-    Pipeline.start_link(options)
+    Pipeline.start_link_supervised!(
+      structure:
+        child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
+        |> child(:parser, %H264.FFmpeg.Parser{framerate: {@framerate, 1}})
+        |> child(:decoder, H264.FFmpeg.Decoder)
+        |> child(:sink, Testing.Sink)
+    )
   end
 
   defp assert_files_equal(file_a, file_b) do
@@ -59,12 +47,10 @@ defmodule DecoderTest do
   defp perform_decoding_test(filename, tmp_dir, timeout) do
     {in_path, ref_path, out_path} = prepare_paths(filename, tmp_dir)
 
-    assert {:ok, pid} = make_pipeline(in_path, out_path)
-    assert_pipeline_playback_changed(pid, :prepared, :playing)
+    pid = make_pipeline(in_path, out_path)
+    assert_pipeline_play(pid)
     assert_end_of_stream(pid, :sink, :input, timeout)
     assert_files_equal(out_path, ref_path)
-
-    Testing.Pipeline.terminate(pid, blocking?: true)
   end
 
   defp perform_timestamping_test(filename, tmp_dir, frame_count) do
@@ -72,8 +58,8 @@ defmodule DecoderTest do
 
     frame_duration = Ratio.div(Membrane.Time.second(), @framerate)
 
-    assert {:ok, pid} = make_pipeline_with_test_sink(in_path)
-    assert_pipeline_playback_changed(pid, :prepared, :playing)
+    pid = make_pipeline_with_test_sink(in_path)
+    assert_pipeline_play(pid)
 
     0..(frame_count - 1)
     |> Enum.each(fn i ->
@@ -87,8 +73,6 @@ defmodule DecoderTest do
       assert_sink_buffer(pid, :sink, %Membrane.Buffer{pts: pts})
       assert expected_pts == pts
     end)
-
-    Testing.Pipeline.terminate(pid, blocking?: true)
   end
 
   describe "DecodingPipeline should" do
