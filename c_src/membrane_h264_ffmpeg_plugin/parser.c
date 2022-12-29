@@ -222,7 +222,7 @@ UNIFEX_TERM flush(UnifexEnv *env, State *state) {
   update_last_frame_number(picture_order_number, state);
 
   int presentation_order_number = picture_order_number + state->poc_offset;
-  int decoding_order_number = state->last_frame_number + 1;
+  int decoding_order_number = state->last_frame_number;
 
   if (resolution_changed(res, state)) {
     res.width = state->parser_ctx->width;
