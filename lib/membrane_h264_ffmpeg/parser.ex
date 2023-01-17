@@ -33,7 +33,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   def_input_pad :input,
     demand_unit: :buffers,
     demand_mode: :auto,
-    accepted_format: %format{} when format in [Membrane.RemoteStream, H264.RemoteStream]
+    accepted_format: %format{} when format in [Membrane.RemoteStream, H264, H264.RemoteStream]
 
   def_output_pad :output,
     demand_mode: :auto,
