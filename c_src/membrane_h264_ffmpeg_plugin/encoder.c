@@ -24,7 +24,11 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
 #if (LIBAVCODEC_VERSION_MAJOR < 58)
   avcodec_register_all();
 #endif
-  const AVCodec *codec = avcodec_find_encoder(AV_CODEC_ID_H264);
+  const AVCodec *codec = avcodec_find_encoder_by_name("h264_nvenc");
+  if (!codec) {
+    codec = avcodec_find_encoder(AV_CODEC_ID_H264);
+  }
+  
   if (!codec) {
     res = create_result_error(env, "nocodec");
     goto exit_create;
@@ -43,6 +47,8 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
     state->codec_ctx->pix_fmt = AV_PIX_FMT_YUV420P;
   } else if (strcmp(pix_fmt, "I422") == 0) {
     state->codec_ctx->pix_fmt = AV_PIX_FMT_YUV422P;
+  } else if (strcmp(pix_fmt, "NV12") == 0) {
+    state->codec_ctx->pix_fmt = AV_PIX_FMT_NV12;
   } else {
     res = create_result_error(env, "pix_fmt");
     goto exit_create;

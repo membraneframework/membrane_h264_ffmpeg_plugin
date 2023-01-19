@@ -2,7 +2,8 @@ module Membrane.H264.FFmpeg.Decoder.Native
 
 state_type "State"
 
-spec create() :: {:ok :: label, state} | {:error :: label, reason :: atom}
+spec create(width :: int, height :: int, timebase_num :: int, timebase_den :: int) ::
+       {:ok :: label, state} | {:error :: label, reason :: atom}
 
 spec decode(payload, pts :: int64, dts :: int64, use_shm :: bool, state) ::
        {:ok :: label, pts_list :: [int64], frames :: [payload]}

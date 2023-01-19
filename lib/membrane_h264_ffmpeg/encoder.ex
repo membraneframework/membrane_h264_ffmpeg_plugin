@@ -21,7 +21,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   def_input_pad :input,
     demand_mode: :auto,
     demand_unit: :buffers,
-    caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
+    caps: {RawVideo, pixel_format: one_of([:I420, :I422, :NV12]), aligned: true}
 
   def_output_pad :output,
     demand_mode: :auto,

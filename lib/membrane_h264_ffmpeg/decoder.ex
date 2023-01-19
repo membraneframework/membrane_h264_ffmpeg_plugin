@@ -30,7 +30,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   def_output_pad :output,
     demand_mode: :auto,
-    caps: {RawVideo, pixel_format: one_of([:I420, :I422]), aligned: true}
+    caps: {RawVideo, pixel_format: one_of([:I420, :I422, :NV12]), aligned: true}
 
   @impl true
   def handle_init(opts) do
@@ -40,7 +40,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_stopped_to_prepared(_ctx, state) do
-    case Native.create() do
+    case Native.create(0, 0, 1, 1_200_000) do
       {:ok, decoder_ref} ->
         {:ok, %{state | decoder_ref: decoder_ref}}
 
@@ -76,9 +76,11 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   end
 
   @impl true
-  def handle_caps(:input, _caps, _ctx, state) do
+  def handle_caps(:input, caps, _ctx, state) do
     # only redeclaring decoder - new caps will be generated in handle_process, after decoding key_frame
-    case Native.create() do
+    {den, num} = caps.framerate
+
+    case Native.create(caps.width, caps.height, num, den) do
       {:ok, decoder_ref} ->
         {:ok, %{state | decoder_ref: decoder_ref, caps_changed: true}}
 

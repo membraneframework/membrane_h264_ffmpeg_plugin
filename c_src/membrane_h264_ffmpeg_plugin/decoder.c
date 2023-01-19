@@ -1,4 +1,5 @@
 #include "decoder.h"
+#include <libavutil/rational.h>
 
 void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
@@ -8,7 +9,7 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
   }
 }
 
-UNIFEX_TERM create(UnifexEnv *env) {
+UNIFEX_TERM create(UnifexEnv *env, int width, int height, int timebase_num, int timebase_den) {
   UNIFEX_TERM res;
   State *state = unifex_alloc_state(env);
   state->codec_ctx = NULL;
@@ -16,7 +17,11 @@ UNIFEX_TERM create(UnifexEnv *env) {
 #if (LIBAVCODEC_VERSION_MAJOR < 58)
   avcodec_register_all();
 #endif
-  const AVCodec *codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+  const AVCodec *codec = avcodec_find_decoder_by_name("h264_cuvid");
+  if (!codec) {
+    codec = avcodec_find_decoder(AV_CODEC_ID_H264);
+  }
+  
   if (!codec) {
     res = create_result_error(env, "nocodec");
     goto exit_create;
@@ -27,6 +32,10 @@ UNIFEX_TERM create(UnifexEnv *env) {
     res = create_result_error(env, "codec_alloc");
     goto exit_create;
   }
+
+  state->codec_ctx->width = width;
+  state->codec_ctx->height = height;
+  state->codec_ctx->pkt_timebase = av_make_q(timebase_num, timebase_den);
 
   if (avcodec_open2(state->codec_ctx, codec, NULL) < 0) {
     res = create_result_error(env, "codec_open");
@@ -192,6 +201,9 @@ UNIFEX_TERM get_metadata(UnifexEnv *env, State *state) {
   case AV_PIX_FMT_YUVJ422P:
   case AV_PIX_FMT_YUV422P:
     pix_format = "I422";
+    break;
+  case AV_PIX_FMT_NV12:
+    pix_format = "NV12";
     break;
   default:
     return get_metadata_result_error_pix_fmt(env);
