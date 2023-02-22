@@ -117,7 +117,8 @@ defmodule Membrane.H264.FFmpeg.Parser do
         frame_prefix: opts.sps <> opts.pps,
         metadata: nil,
         acc: <<>>,
-        profile_has_b_frames?: nil
+        profile_has_b_frames?: nil,
+        original_opts: opts
       })
 
     {[], state}
@@ -269,30 +270,19 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_stream_format(:input, %Membrane.H264.RemoteStream{}, ctx, _state)
+  def handle_stream_format(:input, %Membrane.H264.RemoteStream{} = stream_format, ctx, state)
       when ctx.pads.input.start_of_stream? do
-    raise "Cannot handle Membrane.H264.RemoteStream format after the stream has started"
+    Membrane.Logger.debug("Disposing old parser due to stream format change")
+
+    {[], state} = handle_init(%{}, state.original_opts)
+    {[], state} = handle_setup(%{}, state)
+
+    do_handle_stream_format(stream_format, state)
   end
 
   @impl true
   def handle_stream_format(:input, %Membrane.H264.RemoteStream{} = stream_format, _ctx, state) do
-    {:ok, %{sps: sps, pps: pps}} =
-      Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(
-        stream_format.decoder_configuration_record
-      )
-
-    frame_prefix =
-      Enum.concat([[state.frame_prefix || <<>>], sps, pps])
-      |> Enum.join(<<0, 0, 1>>)
-
-    if state.skip_until_parameters? do
-      Membrane.Logger.warn("""
-      Flag skip_until_parameters? is not compatible with Membrane.H264.RemoteStream stream_format.
-      It is being automatically disabled.
-      """)
-    end
-
-    {[], %{state | frame_prefix: frame_prefix, skip_until_parameters?: false}}
+    do_handle_stream_format(stream_format, state)
   end
 
   @impl true
@@ -332,6 +322,26 @@ defmodule Membrane.H264.FFmpeg.Parser do
     else
       {:error, reason} -> raise "Native parser failed to flush: #{inspect(reason)}"
     end
+  end
+
+  defp do_handle_stream_format(stream_format, state) do
+    {:ok, %{sps: sps, pps: pps}} =
+      Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(
+        stream_format.decoder_configuration_record
+      )
+
+    frame_prefix =
+      Enum.concat([[state.frame_prefix || <<>>], sps, pps])
+      |> Enum.join(<<0, 0, 1>>)
+
+    if state.skip_until_parameters? do
+      Membrane.Logger.warn("""
+      Flag skip_until_parameters? is not compatible with Membrane.H264.RemoteStream stream_format.
+      It is being automatically disabled.
+      """)
+    end
+
+    {[], %{state | frame_prefix: frame_prefix, skip_until_parameters?: false}}
   end
 
   defp parse_access_units(
