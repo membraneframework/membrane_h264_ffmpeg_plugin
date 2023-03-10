@@ -275,11 +275,14 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_stream_format(:input, %Membrane.H264.RemoteStream{} = stream_format, _ctx, state) do
-    {:ok, %{sps: sps, pps: pps}} =
-      Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(
-        stream_format.decoder_configuration_record
+  def handle_stream_format(
+        :input,
+        %Membrane.H264.RemoteStream{decoder_configuration_record: dcr},
+        _ctx,
+        state
       )
+      when dcr != nil do
+    {:ok, %{sps: sps, pps: pps}} = Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(dcr)
 
     frame_prefix =
       Enum.concat([[state.frame_prefix || <<>>], sps, pps])
