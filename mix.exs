@@ -48,10 +48,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       {:ex_doc, "~> 0.29", only: :dev, runtime: false},
       {:credo, "~> 1.6", only: :dev, runtime: false},
       {:dialyxir, "~> 1.1", only: :dev, runtime: false},
-      {:membrane_raw_video_parser_plugin,
-       github: "membraneframework/membrane_raw_video_parser_plugin",
-       branch: "update_caps",
-       only: :test},
+      {:membrane_raw_video_parser_plugin, "~> 0.10.0", only: :test},
       {:membrane_file_plugin, "~> 0.13.0", only: :test}
     ]
   end
