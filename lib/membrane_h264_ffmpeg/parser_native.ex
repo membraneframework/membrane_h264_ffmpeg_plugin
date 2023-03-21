@@ -9,4 +9,15 @@ defmodule Membrane.H264.FFmpeg.Parser.Native do
       {:ok, profile} -> profile
     end
   end
+
+  @spec create!() :: reference()
+  def create!() do
+    case create() do
+      {:ok, parser_ref} ->
+        parser_ref
+
+      {:error, reason} ->
+        raise "Failed to create native parser: #{inspect(reason)}"
+    end
+  end
 end

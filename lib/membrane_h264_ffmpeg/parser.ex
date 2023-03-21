@@ -109,29 +109,16 @@ defmodule Membrane.H264.FFmpeg.Parser do
   @impl true
   def handle_init(_ctx, opts) do
     state =
-      Map.from_struct(opts)
-      |> Map.merge(%{
-        pending_stream_format: nil,
-        parser_ref: nil,
-        partial_frame: <<>>,
-        frame_prefix: opts.sps <> opts.pps,
-        metadata: nil,
-        acc: <<>>,
-        profile_has_b_frames?: nil
-      })
+      opts
+      |> Map.from_struct()
+      |> reset_state()
 
     {[], state}
   end
 
   @impl true
   def handle_setup(_ctx, state) do
-    case Native.create() do
-      {:ok, parser_ref} ->
-        {[], %{state | parser_ref: parser_ref}}
-
-      {:error, reason} ->
-        raise "Failed to create native parser: #{inspect(reason)}"
-    end
+    {[], %{state | parser_ref: Native.create!()}}
   end
 
   @impl true
@@ -184,6 +171,18 @@ defmodule Membrane.H264.FFmpeg.Parser do
   def handle_process(:input, %Buffer{} = buffer, _ctx, state) when state.frame_prefix != <<>> do
     buffer = Map.update!(buffer, :payload, &(state.frame_prefix <> &1))
     do_process(buffer, %{state | frame_prefix: <<>>})
+  end
+
+  defp reset_state(state) do
+    Map.merge(state, %{
+      pending_stream_format: nil,
+      parser_ref: nil,
+      partial_frame: <<>>,
+      frame_prefix: state.sps <> state.pps,
+      metadata: nil,
+      acc: <<>>,
+      profile_has_b_frames?: nil
+    })
   end
 
   defp do_process(%Buffer{payload: payload} = buffer, state) do
@@ -269,23 +268,34 @@ defmodule Membrane.H264.FFmpeg.Parser do
   end
 
   @impl true
-  def handle_stream_format(:input, %Membrane.H264.RemoteStream{}, ctx, _state)
+  def handle_stream_format(:input, %Membrane.H264.RemoteStream{} = stream_format, ctx, state)
       when ctx.pads.input.start_of_stream? do
-    raise "Cannot handle Membrane.H264.RemoteStream format after the stream has started"
+    Membrane.Logger.debug("Disposing old parser due to stream format change")
+
+    state = reset_state(state)
+    state = %{state | parser_ref: Native.create!()}
+
+    do_handle_stream_format(stream_format, state)
   end
 
-  @impl true
-  def handle_stream_format(
-        :input,
-        %Membrane.H264.RemoteStream{decoder_configuration_record: dcr},
-        _ctx,
-        state
-      )
-      when dcr != nil do
+  def handle_stream_format(:input, %Membrane.H264.RemoteStream{} = stream_format, _ctx, state) do
+    do_handle_stream_format(stream_format, state)
+  end
+
+  def handle_stream_format(:input, _stream_format, _ctx, state) do
+    # ignoring stream_format, new onew will be generated in handle_process
+    {[], state}
+  end
+
+  defp do_handle_stream_format(
+         %Membrane.H264.RemoteStream{decoder_configuration_record: dcr},
+         state
+       )
+       when dcr != nil do
     {:ok, %{sps: sps, pps: pps}} = Membrane.H264.FFmpeg.Parser.DecoderConfiguration.parse(dcr)
 
     frame_prefix =
-      Enum.concat([[state.frame_prefix || <<>>], sps, pps])
+      Enum.concat([[state.frame_prefix], sps, pps])
       |> Enum.join(<<0, 0, 1>>)
 
     if state.skip_until_parameters? do
@@ -298,8 +308,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
     {[], %{state | frame_prefix: frame_prefix, skip_until_parameters?: false}}
   end
 
-  @impl true
-  def handle_stream_format(:input, _stream_format, _ctx, state) do
+  defp do_handle_stream_format(_stream_format, state) do
     # ignoring stream_format, new ones will be generated in handle_process
     {[], state}
   end
