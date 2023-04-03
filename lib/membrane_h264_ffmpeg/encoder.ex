@@ -41,6 +41,26 @@ defmodule Membrane.H264.FFmpeg.Encoder do
           | :veryslow
           | :placebo
 
+  @doc """
+  :film – use for high quality movie content; lowers deblocking
+  :animation – good for cartoons; uses higher deblocking and more reference frames
+  :grain – preserves the grain structure in old, grainy film material
+  :stillimage – good for slideshow-like content
+  :fastdecode – allows faster decoding by disabling certain filters
+  :zerolatency – good for fast encoding and low-latency streaming
+  :psnr – ignore this as it is only used for codec development
+  :ssim – ignore this as it is only used for codec development
+  """
+  @type tune() ::
+          :film
+          | :animation
+          | :grain
+          | :stillimage
+          | :fastdecode
+          | :zerolatency
+          | :psnr
+          | :ssim
+
   def_options crf: [
                 description: """
                 Constant rate factor that affects the quality of output stream.
@@ -70,6 +90,15 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 while profile is set to `:baseline` will have no effect and no B-frames will be present).
                 """,
                 spec: H264.profile_t() | nil,
+                default: nil
+              ],
+              tune: [
+                description: """
+                To change settings based upon the specifics of input. For example, if your input is animation then use the animation tuning
+                or if you want to preserve grain in a film then use the grain tuning.
+                If you are unsure of what to use or your input does not match any of tunings then omit the tune option.
+                """,
+                spec: H264.tune_t() | nil,
                 default: nil
               ],
               use_shm?: [
@@ -131,6 +160,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              stream_format.height,
              stream_format.pixel_format,
              state.preset,
+             state.tune,
              state.profile,
              state.max_b_frames || -1,
              state.gop_size || -1,

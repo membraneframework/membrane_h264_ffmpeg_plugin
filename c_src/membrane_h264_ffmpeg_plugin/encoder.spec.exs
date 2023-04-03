@@ -7,6 +7,7 @@ spec create(
        height :: int,
        pix_fmt :: atom,
        preset :: atom,
+       tune :: atom,
        profile :: atom,
        max_b_frames :: int,
        gop_size :: int,
