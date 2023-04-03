@@ -41,16 +41,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
           | :veryslow
           | :placebo
 
-  @doc """
-  :film – use for high quality movie content; lowers deblocking
-  :animation – good for cartoons; uses higher deblocking and more reference frames
-  :grain – preserves the grain structure in old, grainy film material
-  :stillimage – good for slideshow-like content
-  :fastdecode – allows faster decoding by disabling certain filters
-  :zerolatency – good for fast encoding and low-latency streaming
-  :psnr – ignore this as it is only used for codec development
-  :ssim – ignore this as it is only used for codec development
-  """
   @type tune() ::
           :film
           | :animation
@@ -95,10 +85,18 @@ defmodule Membrane.H264.FFmpeg.Encoder do
               tune: [
                 description: """
                 To change settings based upon the specifics of input. For example, if your input is animation then use the animation tuning
-                or if you want to preserve grain in a film then use the grain tuning.
-                If you are unsure of what to use or your input does not match any of tunings then omit the tune option.
+                or if you want to preserve grain in a film then use the grain tuning. If you are unsure of what to use or your input does not match any of tunings
+                then omit the tune option. Available options are:
+                  :film - use for high quality movie content; lowers deblocking
+                  :animation - good for cartoons; uses higher deblocking and more reference frames
+                  :grain - preserves the grain structure in old, grainy film material
+                  :stillimage - good for slideshow-like content
+                  :fastdecode - allows faster decoding by disabling certain filters
+                  :zerolatency - good for fast encoding and low-latency streaming
+                  :psnr - ignore this as it is only used for codec development
+                  :ssim - ignore this as it is only used for codec development
                 """,
-                spec: H264.tune_t() | nil,
+                spec: tune() | nil,
                 default: nil
               ],
               use_shm?: [
