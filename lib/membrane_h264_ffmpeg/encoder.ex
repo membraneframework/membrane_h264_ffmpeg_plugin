@@ -41,6 +41,14 @@ defmodule Membrane.H264.FFmpeg.Encoder do
           | :veryslow
           | :placebo
 
+  @type tune() ::
+          :film
+          | :animation
+          | :grain
+          | :stillimage
+          | :fastdecode
+          | :zerolatency
+
   def_options crf: [
                 description: """
                 Constant rate factor that affects the quality of output stream.
@@ -70,6 +78,21 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 while profile is set to `:baseline` will have no effect and no B-frames will be present).
                 """,
                 spec: H264.profile_t() | nil,
+                default: nil
+              ],
+              tune: [
+                description: """
+                Optionally tune the encoder settings for a particular type of source or situation.
+                See [`x264` encoder's man page](https://manpages.ubuntu.com/manpages/trusty/man1/x264.1.html) for more info.
+                Available options are:
+                - `:film` - use for high quality movie content; lowers deblocking
+                - `:animation` - good for cartoons; uses higher deblocking and more reference frames
+                - `:grain` - preserves the grain structure in old, grainy film material
+                - `:stillimage` - good for slideshow-like content
+                - `:fastdecode` - allows faster decoding by disabling certain filters
+                - `:zerolatency` - good for fast encoding and low-latency streaming
+                """,
+                spec: tune() | nil,
                 default: nil
               ],
               use_shm?: [
@@ -131,6 +154,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              stream_format.height,
              stream_format.pixel_format,
              state.preset,
+             state.tune,
              state.profile,
              state.max_b_frames || -1,
              state.gop_size || -1,
