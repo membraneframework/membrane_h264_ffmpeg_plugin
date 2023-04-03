@@ -82,8 +82,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
               ],
               tune: [
                 description: """
-                Use in case of a specific input. For example, if your input is animation then use the animation tuning
-                or if you want to preserve grain in a film then use the grain tuning.
+                Optionally tune the encoder settings for a particular type of source or situation.
+                See [`x264` encoder's man page](https://manpages.ubuntu.com/manpages/trusty/man1/x264.1.html) for more info.
                 Available options are:
                 - `:film` - use for high quality movie content; lowers deblocking
                 - `:animation` - good for cartoons; uses higher deblocking and more reference frames
