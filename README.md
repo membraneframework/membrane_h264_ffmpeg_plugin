@@ -16,7 +16,7 @@ Documentation is available at [HexDocs](https://hexdocs.pm/membrane_h264_ffmpeg_
 Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 ```elixir
-	{:membrane_h264_ffmpeg_plugin, "~> 0.27.0"}
+{:membrane_h264_ffmpeg_plugin, "~> 0.27.0"}
 ```
 
 You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.
