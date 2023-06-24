@@ -62,6 +62,9 @@ defmodule Decoding.Pipeline do
 end
 ```
 
+[Membrane.H264.Parser](https://github.com/membraneframework/membrane_h264_plugin) is our actively maintained, pure Elixir implementation of the h264 parser. 
+We recommend using it instead of `H264.FFmpeg.Parser`.
+
 ### Encoder
 
 The following pipeline takes 720p raw video file as input and encodes it as H264.
