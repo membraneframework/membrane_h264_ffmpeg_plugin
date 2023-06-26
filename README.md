@@ -62,8 +62,7 @@ defmodule Decoding.Pipeline do
 end
 ```
 
-[Membrane.H264.Parser](https://github.com/membraneframework/membrane_h264_plugin) is our actively maintained, pure Elixir implementation of the h264 parser. 
-We recommend using it instead of `H264.FFmpeg.Parser`.
+`Membrane.H264.FFmpeg.Parser` is not actively developed and will soon be deprecated in favour of our pure Elixir implementation of the H264 parser. We encourage you to try out [`Membrane.H264.Parser`](https://hexdocs.pm/membrane_h264_plugin/Membrane.H264.Parser.html) from [membrane_h264_plugin](https://github.com/membraneframework/membrane_h264_plugin).
 
 ### Encoder
 
