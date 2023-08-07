@@ -514,11 +514,17 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp mk_stream_format(state, width, height) do
     profile = Native.get_profile!(state.parser_ref)
 
+    stream_format_alignment =
+      case state.alignment do
+        :au -> :au
+        :nal -> :nalu
+      end
+
     %H264{
       width: width,
       height: height,
       framerate: state.framerate || {0, 1},
-      alignment: state.alignment,
+      alignment: stream_format_alignment,
       nalu_in_metadata?: state.attach_nalus?,
       profile: profile
     }
