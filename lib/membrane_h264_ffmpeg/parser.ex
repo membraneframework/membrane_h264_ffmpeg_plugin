@@ -63,12 +63,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               alignment: [
-                spec: :au | :nal,
+                spec: :au | :nalu,
                 default: :au,
                 description: """
                 Stream units carried by each output buffer. See `t:Membrane.H264.alignment_t/0`.
 
-                If alignment is `:nal`, the following metadata entries are added:
+                If alignment is `:nalu`, the following metadata entries are added:
                 - `type` - h264 nalu type
                 - `new_access_unit: access_unit_metadata` - added whenever the new access unit starts.
                   `access_unit_metadata` is the metadata that would be merged into the buffer metadata
@@ -488,7 +488,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         %{alignment: :au, attach_nalus?: false} ->
           [{au_number, %Buffer{pts: pts, dts: dts, payload: au, metadata: au_metadata}}]
 
-        %{alignment: :nal} ->
+        %{alignment: :nalu} ->
           Enum.map(nalus, fn nalu ->
             {au_number,
              %Buffer{
@@ -514,17 +514,11 @@ defmodule Membrane.H264.FFmpeg.Parser do
   defp mk_stream_format(state, width, height) do
     profile = Native.get_profile!(state.parser_ref)
 
-    stream_format_alignment =
-      case state.alignment do
-        :au -> :au
-        :nal -> :nalu
-      end
-
     %H264{
       width: width,
       height: height,
       framerate: state.framerate || {0, 1},
-      alignment: stream_format_alignment,
+      alignment: state.alignment,
       nalu_in_metadata?: state.attach_nalus?,
       profile: profile
     }
