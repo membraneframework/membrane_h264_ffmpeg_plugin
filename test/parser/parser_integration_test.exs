@@ -29,7 +29,7 @@ defmodule Membrane.H264.FFmpeg.Parser.IntegrationTest do
     parser = %Membrane.H264.FFmpeg.Parser{
       skip_until_parameters?: false,
       skip_until_keyframe?: true,
-      alignment: :nal
+      alignment: :nalu
     }
 
     pipeline =
