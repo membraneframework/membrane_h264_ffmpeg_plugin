@@ -18,7 +18,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   def_options use_shm?: [
                 spec: boolean(),
-                desciption:
+                description:
                   "If true, native decoder will use shared memory (via `t:Shmex.t/0`) for storing frames",
                 default: false
               ]
