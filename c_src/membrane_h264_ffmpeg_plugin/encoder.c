@@ -10,7 +10,7 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
 
 UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
                    char *preset, char *tune, char *profile, int max_b_frames, int gop_size,
-                   int framerate_num, int framerate_denom, int crf) {
+                   int framerate_num, int framerate_denom, int crf, int sc_threshold) {
   UNIFEX_TERM res;
   AVDictionary *params = NULL;
   State *state = unifex_alloc_state(env);
@@ -76,6 +76,8 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
   }
 
   av_dict_set_int(&params, "crf", crf, 0);
+
+  av_dict_set_int(&params, "sc_threshold", sc_threshold, 0);
 
   if (avcodec_open2(state->codec_ctx, codec, &params) < 0) {
     res = create_result_error(env, "codec_open");

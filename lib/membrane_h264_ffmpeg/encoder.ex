@@ -28,6 +28,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     accepted_format: %H264{alignment: :au}
 
   @default_crf 23
+  @default_sc_threshold 40
 
   @type preset() ::
           :ultrafast
@@ -111,6 +112,16 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 spec: non_neg_integer() | nil,
                 description: "Number of frames in a group of pictures.",
                 default: nil
+              ],
+              sc_threshold: [
+                spec: non_neg_integer(),
+                description: """
+                Sets the threshold for scene change detection. This determines how aggressively `x264`
+                will try to insert extra I-frames (higher values increase the number of scene changes detected).
+                Set to 0 to disable scene change detection (no extra I-frames will be inserted).
+                See [this page](https://en.wikibooks.org/wiki/MeGUI/x264_Settings#scenecut) for more info.
+                """,
+                default: @default_sc_threshold
               ]
 
   @impl true
@@ -160,7 +171,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              state.gop_size || -1,
              framerate_num,
              framerate_denom,
-             state.crf
+             state.crf,
+             state.sc_threshold
            ) do
       stream_format = create_new_stream_format(stream_format, state)
       actions = buffers ++ [stream_format: stream_format]
