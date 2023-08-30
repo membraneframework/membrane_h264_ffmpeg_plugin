@@ -39,7 +39,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   defp deps do
     [
       {:bunch, "~> 1.6"},
-      {:bundlex, path: "../bundlex", override: true},
+      {:bundlex, github: "membraneframework/bundlex", branch: "precompiled_deps", override: true},
       {:unifex, "~> 1.1"},
       {:membrane_core, "~> 0.12.7"},
       {:membrane_common_c, "~> 0.15.0"},
