@@ -4,19 +4,21 @@
 [![API Docs](https://img.shields.io/badge/api-docs-yellow.svg?style=flat)](https://hexdocs.pm/membrane_h264_ffmpeg_plugin/)
 [![CircleCI](https://circleci.com/gh/membraneframework/membrane_h264_ffmpeg_plugin.svg?style=svg)](https://circleci.com/gh/membraneframework/membrane_h264_ffmpeg_plugin)
 
-This package provides H264 video parser, decoder and encoder, based on [ffmpeg](https://www.ffmpeg.org)
+This package provides H264 video decoder and encoder, based on [ffmpeg](https://www.ffmpeg.org)
 and [x264](https://www.videolan.org/developers/x264.html).
 
 It is a part of the [Membrane Multimedia Framework](https://membraneframework.org)
 
 Documentation is available at [HexDocs](https://hexdocs.pm/membrane_h264_ffmpeg_plugin/)
 
+Note: `Membrane.H264.FFmpeg.Parser` is deprecated in favour of our pure Elixir implementation of the H264 parser: [`Membrane.H264.Parser`](https://hexdocs.pm/membrane_h264_plugin/Membrane.H264.Parser.html) from [membrane_h264_plugin](https://github.com/membraneframework/membrane_h264_plugin).
+
 ## Installation
 
 Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 ```elixir
-{:membrane_h264_ffmpeg_plugin, "~> 0.27.0"}
+{:membrane_h264_ffmpeg_plugin, "~> 0.28.2"}
 ```
 
 You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.
@@ -46,23 +48,35 @@ brew install ffmpeg
 The following pipeline takes 30fps H264 file and decodes it to the raw video.
 
 ```elixir
+Logger.configure(level: :info)
+
+Mix.install([
+  :membrane_h264_ffmpeg_plugin,
+  :membrane_h264_plugin,
+  :membrane_file_plugin,
+  :req
+])
+
+h264 = Req.get!("https://raw.githubusercontent.com/membraneframework/static/gh-pages/samples/ffmpeg-testsrc.h264").body
+File.write!("input.h264", h264)
+
 defmodule Decoding.Pipeline do
   use Membrane.Pipeline
 
   @impl true
   def handle_init(_ctx, _opts) do
     structure =
-      child(:source, %Membrane.File.Source{chunk_size: 40_960, location: "input.h264"})
-      |> child(:parser, %H264.FFmpeg.Parser{framerate: {30, 1}})
-      |> child(:decoder, H264.FFmpeg.Decoder)
-      |> child(:sink,  %Membrane.File.Sink{location: "output.raw"})
+      child(%Membrane.File.Source{chunk_size: 40_960, location: "input.h264"})
+      |> child(Membrane.H264.Parser)
+      |> child(Membrane.H264.FFmpeg.Decoder)
+      |> child(%Membrane.File.Sink{location: "output.raw"})
 
     {[spec: structure], %{}}
   end
 end
-```
 
-`Membrane.H264.FFmpeg.Parser` is not actively developed and will soon be deprecated in favour of our pure Elixir implementation of the H264 parser. We encourage you to try out [`Membrane.H264.Parser`](https://hexdocs.pm/membrane_h264_plugin/Membrane.H264.Parser.html) from [membrane_h264_plugin](https://github.com/membraneframework/membrane_h264_plugin).
+Membrane.Pipeline.start_link(Decoding.Pipeline)
+```
 
 ### Encoder
 

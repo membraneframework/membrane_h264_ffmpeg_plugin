@@ -13,7 +13,8 @@ spec create(
        gop_size :: int,
        framerate_num :: int,
        framerate_denom :: int,
-       crf :: int
+       crf :: int,
+       sc_threshold :: int
      ) :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
 spec get_frame_size(state) :: {:ok :: label, frame_size :: int} | {:error :: label}

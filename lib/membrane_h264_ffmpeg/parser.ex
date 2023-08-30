@@ -1,4 +1,6 @@
 defmodule Membrane.H264.FFmpeg.Parser do
+  @moduledoc deprecated: "Use `Membrane.H264.Parser` from membrane_h264_plugin"
+
   @moduledoc """
   Membrane element providing parser for H264 encoded video stream.
   Uses the parser provided by FFmpeg.
@@ -21,6 +23,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
   - SPS and PPS will be extracted from Decoder Configuration Record and added to the payload of the very first buffer without any checks of in-band parameters.
     This might result in duplicated SPS and PPS. It shouldn't be a problem, unless you send an incorrect Decoder Configuration Record that doesn't match the stream.
   """
+
   use Membrane.Filter
   use Bunch
 
@@ -63,12 +66,12 @@ defmodule Membrane.H264.FFmpeg.Parser do
                 """
               ],
               alignment: [
-                spec: :au | :nal,
+                spec: :au | :nalu,
                 default: :au,
                 description: """
                 Stream units carried by each output buffer. See `t:Membrane.H264.alignment_t/0`.
 
-                If alignment is `:nal`, the following metadata entries are added:
+                If alignment is `:nalu`, the following metadata entries are added:
                 - `type` - h264 nalu type
                 - `new_access_unit: access_unit_metadata` - added whenever the new access unit starts.
                   `access_unit_metadata` is the metadata that would be merged into the buffer metadata
@@ -108,6 +111,10 @@ defmodule Membrane.H264.FFmpeg.Parser do
 
   @impl true
   def handle_init(_ctx, opts) do
+    Membrane.Logger.warning(
+      "#{inspect(__MODULE__)} is deprecated. Use Membrane.H264.Parser from membrane_h264_plugin instead."
+    )
+
     state =
       opts
       |> Map.from_struct()
@@ -488,7 +495,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         %{alignment: :au, attach_nalus?: false} ->
           [{au_number, %Buffer{pts: pts, dts: dts, payload: au, metadata: au_metadata}}]
 
-        %{alignment: :nal} ->
+        %{alignment: :nalu} ->
           Enum.map(nalus, fn nalu ->
             {au_number,
              %Buffer{
