@@ -10,7 +10,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
     end
 
     @impl true
-    def get_build_url(unknown_target) do
+    def get_build_url(_unknown_target) do
       :unavailable
     end
 
