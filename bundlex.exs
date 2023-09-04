@@ -10,6 +10,15 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
     end
 
     @impl true
+    def get_build_url({_architecture, _vendor, darwin_os_name}) do
+      if String.starts_with?(darwin_os_name, "darwin") do
+        "https://github.com/membraneframework-labs/precompiled_ffmpeg/releases/download/version1/ffmpeg_macos.tar.gz"
+      else
+        :unavailable
+      end
+    end
+
+    @impl true
     def get_build_url(_unknown_target) do
       :unavailable
     end
