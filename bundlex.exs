@@ -1,31 +1,16 @@
 defmodule Membrane.H264.FFmpeg.BundlexProject do
   use Bundlex.Project
 
-  defmodule PrecompiledFFmpeg do
-    use Bundlex.PrecompiledDependency
+  defp get_ffmpeg() do
+    case Bundlex.get_target() do
+      {_architecture, _vendor, "linux"} ->
+        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n4.4-latest-linux64-gpl-shared-4.4.tar.xz/"
 
-    @impl true
-    def get_build_url({_architecture, _vendor, "linux"}) do
-      "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n4.4-latest-linux64-gpl-shared-4.4.tar.xz/"
-    end
-
-    @impl true
-    def get_build_url({_architecture, _vendor, darwin_os_name}) do
-      if String.starts_with?(darwin_os_name, "darwin") do
+      {_architecture, _vendor, "darwin" <> _rest_of_os_name} ->
         "https://github.com/membraneframework-labs/precompiled_ffmpeg/releases/download/version1/ffmpeg_macos.tar.gz"
-      else
+
+      _other ->
         :unavailable
-      end
-    end
-
-    @impl true
-    def get_build_url(_unknown_target) do
-      :unavailable
-    end
-
-    @impl true
-    def get_headers_path(path, _target) do
-      "#{path}/include"
     end
   end
 
@@ -41,7 +26,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["parser.c"],
         os_deps: [
-          {PrecompiledFFmpeg, ["libavcodec", "libswresample", "libavutil"]}
+          {get_ffmpeg(), ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -49,7 +34,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["decoder.c"],
         os_deps: [
-          {PrecompiledFFmpeg, ["libavcodec", "libswresample", "libavutil"]}
+          {get_ffmpeg(), ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -57,7 +42,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["encoder.c"],
         os_deps: [
-          {PrecompiledFFmpeg, ["libavcodec", "libswresample", "libavutil"]}
+          {get_ffmpeg(), ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ]
