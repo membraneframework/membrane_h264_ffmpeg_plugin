@@ -306,7 +306,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
       |> Enum.join(<<0, 0, 1>>)
 
     if state.skip_until_parameters? do
-      Membrane.Logger.warn("""
+      Membrane.Logger.warning("""
       Flag skip_until_parameters? is not compatible with Membrane.H264.RemoteStream stream_format.
       It is being automatically disabled.
       """)
@@ -335,7 +335,7 @@ defmodule Membrane.H264.FFmpeg.Parser do
         )
 
       if state.partial_frame != <<>> do
-        Membrane.Logger.warn("Discarding incomplete frame because of end of stream")
+        Membrane.Logger.warning("Discarding incomplete frame because of end of stream")
       end
 
       stream_format = mk_stream_format(state, resolution.width, resolution.height)

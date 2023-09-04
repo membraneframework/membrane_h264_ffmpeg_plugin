@@ -41,7 +41,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["parser.c"],
         os_deps: [
-          {PrecompiledFFmpeg, [:libavcodec, :libswresample, :libavutil]}
+          {PrecompiledFFmpeg, ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -49,7 +49,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["decoder.c"],
         os_deps: [
-          {PrecompiledFFmpeg, [:libavcodec, :libswresample, :libavutil]}
+          {PrecompiledFFmpeg, ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -57,7 +57,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["encoder.c"],
         os_deps: [
-          {PrecompiledFFmpeg, [:libavcodec, :libswresample, :libavutil]}
+          {PrecompiledFFmpeg, ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ]
