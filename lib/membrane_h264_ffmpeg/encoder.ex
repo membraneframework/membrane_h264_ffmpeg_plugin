@@ -78,7 +78,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 It may override other, more specific options affecting compression (e.g setting `max_b_frames` to 2
                 while profile is set to `:baseline` will have no effect and no B-frames will be present).
                 """,
-                spec: H264.profile_t() | nil,
+                spec: H264.profile() | nil,
                 default: nil
               ],
               tune: [
