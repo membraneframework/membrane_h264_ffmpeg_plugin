@@ -11,7 +11,7 @@ It is a part of the [Membrane Multimedia Framework](https://membraneframework.or
 
 Documentation is available at [HexDocs](https://hexdocs.pm/membrane_h264_ffmpeg_plugin/)
 
-Note: `Membrane.H264.FFmpeg.Parser` is deprecated in favour of our pure Elixir implementation of the H264 parser: [`Membrane.H264.Parser`](https://hexdocs.pm/membrane_h264_plugin/Membrane.H264.Parser.html) from [membrane_h264_plugin](https://github.com/membraneframework/membrane_h264_plugin).
+Note: `Membrane.H264.FFmpeg.Parser` has been removed. Now you can use our pure Elixir implementation of the H264 parser: [`Membrane.H264.Parser`](https://hexdocs.pm/membrane_h264_plugin/Membrane.H264.Parser.html) from [membrane_h264_plugin](https://github.com/membraneframework/membrane_h264_plugin).
 
 ## Installation
 

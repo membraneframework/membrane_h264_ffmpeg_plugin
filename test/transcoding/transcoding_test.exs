@@ -10,7 +10,11 @@ defmodule TranscodingTest do
     Pipeline.start_link_supervised!(
       structure: [
         child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
-        |> child(:parser, H264.FFmpeg.Parser)
+        |> child(:parser, %H264.Parser{
+          skip_until_keyframe: false,
+          output_stream_structure: :annexb,
+          output_alignment: :au
+        })
         |> child(:decoder, H264.FFmpeg.Decoder)
         |> child(:encoder, %H264.FFmpeg.Encoder{preset: :fast, crf: 30})
         |> child(:sink, %Membrane.File.Sink{location: out_path})
