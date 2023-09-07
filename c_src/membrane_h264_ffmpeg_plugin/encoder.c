@@ -10,7 +10,7 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
 
 UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
                    char *preset, char *tune, char *profile, int max_b_frames, int gop_size,
-                   int framerate_num, int framerate_denom, int crf, int sc_threshold) {
+                   int timebase_num, int timebase_den, int crf, int sc_threshold) {
   UNIFEX_TERM res;
   AVDictionary *params = NULL;
   State *state = unifex_alloc_state(env);
@@ -48,16 +48,9 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
     goto exit_create;
   }
 
-  state->codec_ctx->framerate.num = framerate_num;
-  state->codec_ctx->framerate.den = framerate_denom;
-
-  if (framerate_num == 0) {
-    state->codec_ctx->time_base.num = 1;
-    state->codec_ctx->time_base.den = 30;
-  } else {
-    state->codec_ctx->time_base.num = framerate_denom;
-    state->codec_ctx->time_base.den = framerate_num;
-  }
+  state->codec_ctx->time_base.num = timebase_num;
+  state->codec_ctx->time_base.den = timebase_den;
+  
   if (max_b_frames > -1) {
     state->codec_ctx->max_b_frames = max_b_frames;
   }

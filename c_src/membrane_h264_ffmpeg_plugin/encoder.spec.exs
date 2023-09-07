@@ -11,8 +11,8 @@ spec create(
        profile :: atom,
        max_b_frames :: int,
        gop_size :: int,
-       framerate_num :: int,
-       framerate_denom :: int,
+       timebase_num :: int,
+       timebase_den :: int,
        crf :: int,
        sc_threshold :: int
      ) :: {:ok :: label, state} | {:error :: label, reason :: atom}

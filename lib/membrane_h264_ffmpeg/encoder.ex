@@ -156,13 +156,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @impl true
   def handle_stream_format(:input, stream_format, _ctx, state) do
-
-    {framerate_num, framerate_denom} = case stream_format.framerate do
-      nil -> {30, 1}
-      {framerate_num, framerate_denom} -> {framerate_num, framerate_denom}
-      frames_per_second when is_integer(frames_per_second) -> {frames_per_second, 1}
-    end
-    
+    {timebase_num, timebase_den} =
+      case stream_format.framerate do
+        nil -> {1, 30}
+        {0, _framerate_den} -> {1, 30}
+        {framerate_num, framerate_den} -> {framerate_den, framerate_num}
+        frames_per_second when is_integer(frames_per_second) -> {1, frames_per_second}
+      end
 
     with buffers <- flush_encoder_if_exists(state),
          {:ok, new_encoder_ref} <-
@@ -175,8 +175,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              state.profile,
              state.max_b_frames || -1,
              state.gop_size || -1,
-             framerate_num,
-             framerate_denom,
+             timebase_num,
+             timebase_den,
              state.crf,
              state.sc_threshold
            ) do

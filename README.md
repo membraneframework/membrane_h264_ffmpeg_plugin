@@ -18,7 +18,7 @@ Note: `Membrane.H264.FFmpeg.Parser` has been removed. Now you can use our pure E
 Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 ```elixir
-{:membrane_h264_ffmpeg_plugin, "~> 0.28.2"}
+{:membrane_h264_ffmpeg_plugin, "~> 0.29.0"}
 ```
 
 You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.
