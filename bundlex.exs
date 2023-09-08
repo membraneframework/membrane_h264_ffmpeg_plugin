@@ -9,12 +9,6 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
 
   defp natives() do
     [
-      parser: [
-        interface: :nif,
-        sources: ["parser.c"],
-        pkg_configs: ["libavcodec", "libavutil"],
-        preprocessor: Unifex
-      ],
       decoder: [
         interface: :nif,
         sources: ["decoder.c"],

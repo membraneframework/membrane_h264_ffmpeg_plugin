@@ -22,7 +22,7 @@ defmodule DecoderTest do
     Pipeline.start_link_supervised!(
       structure:
         child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
-        |> child(:parser, H264.FFmpeg.Parser)
+        |> child(:parser, H264.Parser)
         |> child(:decoder, H264.FFmpeg.Decoder)
         |> child(:sink, %Membrane.File.Sink{location: out_path})
     )
@@ -32,7 +32,9 @@ defmodule DecoderTest do
     Pipeline.start_link_supervised!(
       structure:
         child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
-        |> child(:parser, %H264.FFmpeg.Parser{framerate: {@framerate, 1}})
+        |> child(:parser, %H264.Parser{
+          generate_best_effort_timestamps: %{framerate: {@framerate, 1}}
+        })
         |> child(:decoder, H264.FFmpeg.Decoder)
         |> child(:sink, Testing.Sink)
     )
