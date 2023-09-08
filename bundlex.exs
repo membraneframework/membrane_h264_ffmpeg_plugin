@@ -3,14 +3,16 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
 
   defp get_ffmpeg() do
     case Bundlex.get_target() do
-      {_architecture, _vendor, "linux"} ->
-        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n4.4-latest-linux64-gpl-shared-4.4.tar.xz/"
+      %{os: "linux"} ->
+        {:precompiled,
+         "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n4.4-latest-linux64-gpl-shared-4.4.tar.xz/"}
 
-      {_architecture, _vendor, "darwin" <> _rest_of_os_name} ->
-        "https://github.com/membraneframework-labs/precompiled_ffmpeg/releases/download/version1/ffmpeg_macos.tar.gz"
+      # %{architecture: "x86_64", os: "darwin" <> _rest_of_os_name} ->
+      #   {:precompiled,
+      #    "https://github.com/membraneframework-precompiled/precompiled_ffmpeg/releases/download/version1/ffmpeg_macos_intel_with_brew.tar.gz"}
 
       _other ->
-        :unavailable
+        nil
     end
   end
 
@@ -26,7 +28,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["parser.c"],
         os_deps: [
-          {get_ffmpeg(), ["libavcodec", "libswresample", "libavutil"]}
+          {[get_ffmpeg(), :pkg_config], ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -34,7 +36,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["decoder.c"],
         os_deps: [
-          {get_ffmpeg(), ["libavcodec", "libswresample", "libavutil"]}
+          {[get_ffmpeg(), :pkg_config], ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -42,7 +44,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["encoder.c"],
         os_deps: [
-          {get_ffmpeg(), ["libavcodec", "libswresample", "libavutil"]}
+          {[get_ffmpeg(), :pkg_config], ["libavcodec", "libswresample", "libavutil"]}
         ],
         preprocessor: Unifex
       ]
