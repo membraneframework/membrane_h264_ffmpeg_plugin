@@ -2,14 +2,18 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
   use Bundlex.Project
 
   defp get_ffmpeg() do
+    url_prefix =
+      "https://github.com/membraneframework-precompiled/precompiled_ffmpeg/releases/latest/download/ffmpeg"
+
     case Bundlex.get_target() do
       %{os: "linux"} ->
-        {:precompiled,
-         "https://github.com/membraneframework-precompiled/precompiled_ffmpeg/releases/download/version1/ffmpeg_linux.tar.gz"}
+        {:precompiled, "#{url_prefix}_linux.tar.gz"}
 
       %{architecture: "x86_64", os: "darwin" <> _rest_of_os_name} ->
-        {:precompiled,
-         "https://github.com/membraneframework-precompiled/precompiled_ffmpeg/releases/download/version1/ffmpeg_macos_intel.tar.gz"}
+        {:precompiled, "#{url_prefix}_macos_intel.tar.gz"}
+
+      %{architecture: "aarch64", os: "darwin" <> _rest_of_os_name} ->
+        {:precompiled, "#{url_prefix}_macos_arm.tar.gz"}
 
       _other ->
         nil
