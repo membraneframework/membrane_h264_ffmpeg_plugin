@@ -1,7 +1,7 @@
 defmodule Membrane.H264.FFmpeg.BundlexProject do
   use Bundlex.Project
 
-  defp get_ffmpeg() do
+  defp get_ffmpeg_url() do
     url_prefix =
       "https://github.com/membraneframework-precompiled/precompiled_ffmpeg/releases/latest/download/ffmpeg"
 
@@ -32,7 +32,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["parser.c"],
         os_deps: [
-          {[get_ffmpeg(), :pkg_config], ["libavcodec", "libswresample", "libavutil"]}
+          {get_ffmpeg_url(), ["libavcodec", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -40,7 +40,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["decoder.c"],
         os_deps: [
-          {[get_ffmpeg(), :pkg_config], ["libavcodec", "libswresample", "libavutil"]}
+          {get_ffmpeg_url(), ["libavcodec", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -48,7 +48,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["encoder.c"],
         os_deps: [
-          {[get_ffmpeg(), :pkg_config], ["libavcodec", "libswresample", "libavutil"]}
+          {get_ffmpeg_url(), ["libavcodec", "libavutil"]}
         ],
         preprocessor: Unifex
       ]
