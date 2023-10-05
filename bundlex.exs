@@ -8,7 +8,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
     case Bundlex.get_target() do
       %{os: "linux"} ->
         {:precompiled,
-        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-linux64-gpl-shared-6.0.tar.xz"}
+         "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-linux64-gpl-shared-6.0.tar.xz"}
 
       %{architecture: "x86_64", os: "darwin" <> _rest_of_os_name} ->
         {:precompiled, "#{membrane_precompiled_url_prefix}_macos_intel.tar.gz"}
