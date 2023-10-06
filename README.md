@@ -23,19 +23,20 @@ Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 
 This package depends on the [ffmpeg](https://www.ffmpeg.org) libraries. The precompiled builds will be pulled and linked automatically. However, should there be any problems, consider installing it manually.
 
-### Ubuntu
+### Manual instalation of dependencies
+#### Ubuntu
 
 ```bash
 sudo apt-get install libavcodec-dev libavformat-dev libavutil-dev
 ```
 
-### Arch/Manjaro
+#### Arch/Manjaro
 
 ```bash
 pacman -S ffmpeg
 ```
 
-### MacOS
+#### MacOS
 
 ```bash
 brew install ffmpeg

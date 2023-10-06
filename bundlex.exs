@@ -33,7 +33,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["parser.c"],
         os_deps: [
-          {get_ffmpeg_url(), ["libavcodec", "libavutil"]}
+          {[get_ffmpeg_url(), :pkg_config], ["libavcodec", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -41,7 +41,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["decoder.c"],
         os_deps: [
-          {get_ffmpeg_url(), ["libavcodec", "libavutil"]}
+          {[get_ffmpeg_url(), :pkg_config], ["libavcodec", "libavutil"]}
         ],
         preprocessor: Unifex
       ],
@@ -49,7 +49,7 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["encoder.c"],
         os_deps: [
-          {get_ffmpeg_url(), ["libavcodec", "libavutil"]}
+          {[get_ffmpeg_url(), :pkg_config], ["libavcodec", "libavutil"]}
         ],
         preprocessor: Unifex
       ]
