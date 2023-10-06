@@ -21,7 +21,8 @@ Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 {:membrane_h264_ffmpeg_plugin, "~> 0.28.2"}
 ```
 
-You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.
+This package depends on [ffmpeg](https://www.ffmpeg.org) libraries. The precompiled builds will 
+be pulled and linked automatically. However, should there be any problems, consider installing it manually.
 
 ### Ubuntu
 
