@@ -1,9 +1,13 @@
 #pragma once
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wall" 
+#pragma GCC diagnostic ignored "-Wextra" 
 #include <libavcodec/avcodec.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/log.h>
 #include <libavutil/opt.h>
+#pragma GCC diagnostic pop
 
 typedef struct H264EncoderState {
   AVCodecContext *codec_ctx;

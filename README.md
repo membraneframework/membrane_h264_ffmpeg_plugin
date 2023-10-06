@@ -21,21 +21,22 @@ Add the following line to your `deps` in `mix.exs`. Run `mix deps.get`.
 {:membrane_h264_ffmpeg_plugin, "~> 0.29.0"}
 ```
 
-You also need to have [ffmpeg](https://www.ffmpeg.org) libraries installed in your system.
+This package depends on the [ffmpeg](https://www.ffmpeg.org) libraries. The precompiled builds will be pulled and linked automatically. However, should there be any problems, consider installing it manually.
 
-### Ubuntu
+### Manual instalation of dependencies
+#### Ubuntu
 
 ```bash
 sudo apt-get install libavcodec-dev libavformat-dev libavutil-dev
 ```
 
-### Arch/Manjaro
+#### Arch/Manjaro
 
 ```bash
 pacman -S ffmpeg
 ```
 
-### MacOS
+#### MacOS
 
 ```bash
 brew install ffmpeg
