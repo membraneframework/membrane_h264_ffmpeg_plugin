@@ -78,7 +78,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 It may override other, more specific options affecting compression (e.g setting `max_b_frames` to 2
                 while profile is set to `:baseline` will have no effect and no B-frames will be present).
                 """,
-                spec: H264.profile_t() | nil,
+                spec: H264.profile() | nil,
                 default: nil
               ],
               tune: [
@@ -156,7 +156,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   @impl true
   def handle_stream_format(:input, stream_format, _ctx, state) do
-    {framerate_num, framerate_denom} = stream_format.framerate
+    {timebase_num, timebase_den} =
+      case stream_format.framerate do
+        nil -> {1, 30}
+        {0, _framerate_den} -> {1, 30}
+        {framerate_num, framerate_den} -> {framerate_den, framerate_num}
+        frames_per_second when is_integer(frames_per_second) -> {1, frames_per_second}
+      end
 
     with buffers <- flush_encoder_if_exists(state),
          {:ok, new_encoder_ref} <-
@@ -169,8 +175,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              state.profile,
              state.max_b_frames || -1,
              state.gop_size || -1,
-             framerate_num,
-             framerate_denom,
+             timebase_num,
+             timebase_den,
              state.crf,
              state.sc_threshold
            ) do
