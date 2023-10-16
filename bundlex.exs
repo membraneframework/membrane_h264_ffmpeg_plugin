@@ -6,6 +6,10 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
       "https://github.com/membraneframework-precompiled/precompiled_ffmpeg/releases/latest/download/ffmpeg"
 
     case Bundlex.get_target() do
+      %{architecture: "aarch64", os: "linux"} ->
+        {:precompiled,
+         "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-linuxarm64-gpl-shared-6.0.tar.xz"}
+
       %{os: "linux"} ->
         {:precompiled,
          "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-linux64-gpl-shared-6.0.tar.xz"}
