@@ -50,7 +50,6 @@ defmodule DecoderTest do
     {in_path, ref_path, out_path} = prepare_paths(filename, tmp_dir)
 
     pid = make_pipeline(in_path, out_path)
-    assert_pipeline_play(pid)
     assert_end_of_stream(pid, :sink, :input, timeout)
     assert_files_equal(out_path, ref_path)
   end
@@ -61,7 +60,7 @@ defmodule DecoderTest do
     frame_duration = Ratio.div(Membrane.Time.second(), @framerate)
 
     pid = make_pipeline_with_test_sink(in_path)
-    assert_pipeline_play(pid)
+    assert_sink_playing(pid, :sink)
 
     0..(frame_count - 1)
     |> Enum.each(fn i ->

@@ -23,7 +23,6 @@ defmodule TranscodingTest do
     out_path = Path.join(tmp_dir, "output-transcode-#{filename}.h264")
 
     pid = make_pipeline(in_path, out_path)
-    assert_pipeline_play(pid)
     assert_end_of_stream(pid, :sink, :input, timeout)
   end
 
