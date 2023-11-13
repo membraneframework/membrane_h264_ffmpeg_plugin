@@ -57,7 +57,7 @@ defmodule DecoderTest do
   defp perform_timestamping_test(filename, tmp_dir, frame_count) do
     {in_path, _ref_path, _out_path} = prepare_paths(filename, tmp_dir)
 
-    frame_duration = Ratio.div(Membrane.Time.second(), @framerate)
+    frame_duration = Numbers.div(Membrane.Time.second(), @framerate)
 
     pid = make_pipeline_with_test_sink(in_path)
     assert_sink_playing(pid, :sink)
@@ -65,7 +65,7 @@ defmodule DecoderTest do
     0..(frame_count - 1)
     |> Enum.each(fn i ->
       expected_pts =
-        Ratio.mult(i, frame_duration)
+        Numbers.mult(i, frame_duration)
         # trunc in parser
         |> Ratio.trunc()
         |> Common.to_h264_time_base_truncated()

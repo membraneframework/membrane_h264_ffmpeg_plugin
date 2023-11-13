@@ -7,7 +7,7 @@ defmodule Membrane.H264.FFmpeg.Common do
   @doc """
   Converts time in membrane time base (1 [ns]) to h264 time base (1/90_000 [s])
   """
-  @spec to_h264_time_base_truncated(number | Ratio.t() | nil) :: integer
+  @spec to_h264_time_base_truncated(number | Numbers.t() | nil) :: integer
   def to_h264_time_base_truncated(nil), do: @no_pts
 
   def to_h264_time_base_truncated(timestamp) do
@@ -17,7 +17,7 @@ defmodule Membrane.H264.FFmpeg.Common do
   @doc """
   Converts time from h264 time base (1/90_000 [s]) to membrane time base (1 [ns])
   """
-  @spec to_membrane_time_base_truncated(number | Ratio.t()) :: integer | nil
+  @spec to_membrane_time_base_truncated(number | Numbers.t()) :: integer | nil
   def to_membrane_time_base_truncated(@no_pts), do: nil
 
   def to_membrane_time_base_truncated(timestamp) do
