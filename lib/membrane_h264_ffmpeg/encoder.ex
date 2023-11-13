@@ -20,7 +20,6 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   def_input_pad :input,
     flow_control: :auto,
-    demand_unit: :buffers,
     accepted_format: %RawVideo{pixel_format: format, aligned: true} when format in [:I420, :I422]
 
   def_output_pad :output,
