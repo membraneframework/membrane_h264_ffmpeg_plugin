@@ -19,12 +19,12 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   alias Membrane.RawVideo
 
   def_input_pad :input,
-    demand_mode: :auto,
+    flow_control: :auto,
     demand_unit: :buffers,
     accepted_format: %RawVideo{pixel_format: format, aligned: true} when format in [:I420, :I422]
 
   def_output_pad :output,
-    demand_mode: :auto,
+    flow_control: :auto,
     accepted_format: %H264{alignment: :au}
 
   @default_crf 23
@@ -134,7 +134,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_process(:input, buffer, _ctx, state) do
+  def handle_buffer(:input, buffer, _ctx, state) do
     %{encoder_ref: encoder_ref, use_shm?: use_shm?} = state
     pts = Common.to_h264_time_base_truncated(buffer.pts)
 
