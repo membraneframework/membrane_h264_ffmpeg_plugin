@@ -16,7 +16,7 @@ defmodule EncoderTest do
 
   defp make_pipeline(in_path, out_path, width, height, format) do
     Pipeline.start_link_supervised!(
-      structure:
+      spec:
         child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
         |> child(:praser, %RawVideo.Parser{width: width, height: height, pixel_format: format})
         |> child(:encoder, %H264.FFmpeg.Encoder{preset: :fast, crf: 30})
@@ -28,7 +28,6 @@ defmodule EncoderTest do
     {in_path, out_path} = prepare_paths(filename, tmp_dir)
 
     pid = make_pipeline(in_path, out_path, width, height, format)
-    assert_pipeline_play(pid)
     assert_end_of_stream(pid, :sink, :input, 4000)
   end
 

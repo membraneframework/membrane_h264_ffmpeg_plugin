@@ -8,7 +8,7 @@ defmodule TranscodingTest do
 
   defp make_pipeline(in_path, out_path) do
     Pipeline.start_link_supervised!(
-      structure: [
+      spec: [
         child(:file_src, %Membrane.File.Source{chunk_size: 40_960, location: in_path})
         |> child(:parser, H264.Parser)
         |> child(:decoder, H264.FFmpeg.Decoder)
@@ -23,7 +23,6 @@ defmodule TranscodingTest do
     out_path = Path.join(tmp_dir, "output-transcode-#{filename}.h264")
 
     pid = make_pipeline(in_path, out_path)
-    assert_pipeline_play(pid)
     assert_end_of_stream(pid, :sink, :input, timeout)
   end
 

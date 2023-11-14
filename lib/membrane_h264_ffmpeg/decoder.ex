@@ -24,12 +24,11 @@ defmodule Membrane.H264.FFmpeg.Decoder do
               ]
 
   def_input_pad :input,
-    demand_unit: :buffers,
-    demand_mode: :auto,
+    flow_control: :auto,
     accepted_format: %H264{alignment: :au}
 
   def_output_pad :output,
-    demand_mode: :auto,
+    flow_control: :auto,
     accepted_format: %RawVideo{pixel_format: format, aligned: true} when format in [:I420, :I422]
 
   @impl true
@@ -44,7 +43,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
   end
 
   @impl true
-  def handle_process(:input, buffer, ctx, state) do
+  def handle_buffer(:input, buffer, ctx, state) do
     %{decoder_ref: decoder_ref, use_shm?: use_shm?} = state
 
     dts = Common.to_h264_time_base_truncated(buffer.dts)
@@ -71,7 +70,7 @@ defmodule Membrane.H264.FFmpeg.Decoder do
 
   @impl true
   def handle_stream_format(:input, _stream_format, _ctx, state) do
-    # only redeclaring decoder - new stream_format will be generated in handle_process, after decoding key_frame
+    # only redeclaring decoder - new stream_format will be generated in handle_buffer, after decoding key_frame
     {[], %{state | decoder_ref: Native.create!(), format_changed?: true}}
   end
 
