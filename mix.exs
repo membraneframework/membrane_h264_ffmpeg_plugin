@@ -39,7 +39,7 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   defp deps do
     [
       {:bunch, "~> 1.6"},
-      {:bundlex, "~> 1.2.0"},
+      {:bundlex, "~> 1.3"},
       {:unifex, "~> 1.1.0"},
       {:membrane_core, "~> 1.0"},
       {:membrane_common_c, "~> 0.16.0"},
