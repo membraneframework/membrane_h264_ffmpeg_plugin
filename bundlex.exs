@@ -11,14 +11,13 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
          "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-linuxarm64-gpl-shared-6.0.tar.xz"}
 
       %{os: "linux"} ->
-        {:precompiled,
-         "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-linux64-gpl-shared-6.0.tar.xz"}
+        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n6.0-latest-linux64-gpl-shared-6.0.tar.xz"
 
       %{architecture: "x86_64", os: "darwin" <> _rest_of_os_name} ->
-        {:precompiled, "#{membrane_precompiled_url_prefix}_macos_intel.tar.gz"}
+        "#{membrane_precompiled_url_prefix}_macos_intel.tar.gz"
 
       %{architecture: "aarch64", os: "darwin" <> _rest_of_os_name} ->
-        {:precompiled, "#{membrane_precompiled_url_prefix}_macos_arm.tar.gz"}
+        "#{membrane_precompiled_url_prefix}_macos_arm.tar.gz"
 
       _other ->
         nil
@@ -37,7 +36,10 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["decoder.c"],
         os_deps: [
-          {[get_ffmpeg_url(), :pkg_config], ["libavcodec", "libavutil"]}
+          ffmpeg: [
+            {:precompiled, get_ffmpeg_url, ["libavcodec", "libavutil"]},
+            {:pkg_config, ["libavcodec", "libavutil"]}
+          ]
         ],
         preprocessor: Unifex
       ],
@@ -45,7 +47,10 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         interface: :nif,
         sources: ["encoder.c"],
         os_deps: [
-          {[get_ffmpeg_url(), :pkg_config], ["libavcodec", "libavutil"]}
+          ffmpeg: [
+            {:precompiled, get_ffmpeg_url, ["libavcodec", "libavutil"]},
+            {:pkg_config, ["libavcodec", "libavutil"]}
+          ]
         ],
         preprocessor: Unifex
       ]
