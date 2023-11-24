@@ -24,7 +24,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
   def_output_pad :output,
     flow_control: :auto,
-    accepted_format: %H264{alignment: :au}
+    accepted_format: %H264{alignment: :au, stream_structure: :annexb}
 
   @default_crf 23
   @default_sc_threshold 40
