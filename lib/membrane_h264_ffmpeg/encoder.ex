@@ -171,7 +171,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              stream_format.pixel_format,
              state.preset,
              state.tune,
-             state.profile,
+             get_ffmpeg_profile(state.profile),
              state.max_b_frames || -1,
              state.gop_size || -1,
              timebase_num,
@@ -227,5 +227,17 @@ defmodule Membrane.H264.FFmpeg.Encoder do
        width: stream_format.width,
        profile: state.profile
      }}
+  end
+
+  defp get_ffmpeg_profile(profile) do
+    case profile do
+      :high_10 -> :high10
+      :high_10_intra -> :high10
+      :high_422 -> :high422
+      :high_422_intra -> :high422
+      :high_444 -> :high444
+      :high_444_intra -> :high444
+      other -> other
+    end
   end
 end
