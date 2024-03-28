@@ -52,6 +52,7 @@ defmodule DecoderTest do
     pid = make_pipeline(in_path, out_path)
     assert_end_of_stream(pid, :sink, :input, timeout)
     assert_files_equal(out_path, ref_path)
+    Pipeline.terminate(pid)
   end
 
   defp perform_timestamping_test(filename, tmp_dir, frame_count) do
@@ -74,6 +75,8 @@ defmodule DecoderTest do
       assert_sink_buffer(pid, :sink, %Membrane.Buffer{pts: pts})
       assert expected_pts == pts
     end)
+
+    Pipeline.terminate(pid)
   end
 
   describe "DecodingPipeline should" do

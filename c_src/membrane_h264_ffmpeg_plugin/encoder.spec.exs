@@ -27,4 +27,4 @@ spec flush(use_shm :: bool, state) ::
        {:ok :: label, dts_list :: [int64], pts_list :: [int64], frames :: [payload]}
        | {:error :: label, reason :: atom}
 
-dirty :cpu, flush: 1, encode: 3
+dirty :cpu, flush: 2, encode: 4

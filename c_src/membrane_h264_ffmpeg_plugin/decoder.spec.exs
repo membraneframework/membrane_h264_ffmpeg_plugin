@@ -16,4 +16,4 @@ spec get_metadata(state) ::
        {:ok :: label, width :: int, height :: int, pix_fmt :: atom}
        | {:error :: label, :pix_fmt :: label}
 
-dirty :cpu, decode: 3, flush: 1
+dirty :cpu, decode: 5, flush: 2
