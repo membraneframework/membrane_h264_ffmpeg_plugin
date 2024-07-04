@@ -21,8 +21,8 @@ defmodule Encoder.NativeTest do
                    frame,
                    Common.to_h264_time_base_truncated(seconds(timestamp)),
                    _use_shm? = false,
-                   _keyframe_requested? = false
-                   ref,
+                   _keyframe_requested? = false,
+                   ref
                  )
       end
     )
