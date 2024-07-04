@@ -64,6 +64,8 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
     av_dict_set(&params, "profile", profile, 0);
   }
 
+//  state->codec_ctx->profile = FF_PROFILE_H264_BASELINE;
+
   if (strcmp("nil", tune) != 0) {
     av_dict_set(&params, "tune", tune, 0);
   }
@@ -153,7 +155,7 @@ exit_get_frames:
 }
 
 UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
-                   int use_shm, State *state) {
+                   int use_shm, int keyframe_requested, State *state) {
   UNIFEX_TERM res_term;
   int res = 0;
   int max_frames = 16, frame_cnt = 0;
@@ -165,6 +167,9 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   frame->format = state->codec_ctx->pix_fmt;
   frame->width = state->codec_ctx->width;
   frame->height = state->codec_ctx->height;
+  if(keyframe_requested) {
+    frame->pict_type = AV_PICTURE_TYPE_I;
+  }
   av_image_fill_arrays(frame->data, frame->linesize, payload->data,
                        frame->format, frame->width, frame->height, 1);
 
