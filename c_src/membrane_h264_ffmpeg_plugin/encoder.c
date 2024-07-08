@@ -64,8 +64,6 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
     av_dict_set(&params, "profile", profile, 0);
   }
 
-//  state->codec_ctx->profile = FF_PROFILE_H264_BASELINE;
-
   if (strcmp("nil", tune) != 0) {
     av_dict_set(&params, "tune", tune, 0);
   }
