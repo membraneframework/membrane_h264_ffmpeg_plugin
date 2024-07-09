@@ -72,6 +72,16 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
 
   av_dict_set_int(&params, "sc_threshold", sc_threshold, 0);
 
+  av_dict_set_int(&params, "qcomp", "0.6", 0);
+  av_dict_set_int(&params, "me_range", "16", 0);
+  av_dict_set_int(&params, "qdiff", "4", 0);
+  av_dict_set_int(&params, "qmin", "0", 0);
+  av_dict_set_int(&params, "qmax", "69", 0);
+  av_dict_set_int(&params, "i_qfactor", "1.4", 0);
+  av_dict_set_int(&params, "f_pb_factor", "1.3", 0);
+  av_dict_set_int(&params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
+  av_dict_set_int(&params, "subq", "2", 0);
+
   if (avcodec_open2(state->codec_ctx, codec, &params) < 0) {
     res = create_result_error(env, "codec_open");
     goto exit_create;
