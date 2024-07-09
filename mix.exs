@@ -1,7 +1,7 @@
 defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
   use Mix.Project
 
-  @version "0.31.8"
+  @version "0.32.0"
   @github_url "https://github.com/membraneframework/membrane_h264_ffmpeg_plugin"
 
   def project do
