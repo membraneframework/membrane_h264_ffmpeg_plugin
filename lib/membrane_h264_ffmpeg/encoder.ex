@@ -202,7 +202,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   end
 
   @impl true
-  def handle_event(:output, %Membrane.H264.FFmpeg.KeyframeRequestEvent{}, _ctx, state) do
+  def handle_event(:output, %Membrane.KeyframeRequestEvent{}, _ctx, state) do
     {[], %{state | keyframe_requested?: true}}
   end
 
