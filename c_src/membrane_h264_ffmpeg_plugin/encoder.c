@@ -58,6 +58,8 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
     state->codec_ctx->gop_size = gop_size;
   }
 
+  set_x264_defaults(&params, preset);
+
   av_dict_set(&params, "preset", preset, 0);
 
   if (strcmp("nil", profile) != 0) {
@@ -67,25 +69,8 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
   if (strcmp("nil", tune) != 0) {
     av_dict_set(&params, "tune", tune, 0);
   }
-
   av_dict_set_int(&params, "crf", crf, 0);
-
   av_dict_set_int(&params, "sc_threshold", sc_threshold, 0);
-
-  av_dict_set(&params, "qcomp", "0.6", 0);
-  av_dict_set(&params, "me_range", "16", 0);
-  av_dict_set(&params, "qdiff", "4", 0);
-  av_dict_set(&params, "qmin", "0", 0);
-  av_dict_set(&params, "qmax", "69", 0);
-  av_dict_set(&params, "i_qfactor", "1.4", 0);
-  av_dict_set(&params, "f_pb_factor", "1.3", 0);
-  av_dict_set(&params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
-  av_dict_set(&params, "subq", "2", 0);
-
-  if (avcodec_open2(state->codec_ctx, codec, &params) < 0) {
-    res = create_result_error(env, "codec_open");
-    goto exit_create;
-  }
 
   res = create_result_ok(env, state);
 exit_create:
@@ -252,4 +237,65 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
     unifex_free(dts_list);
   }
   return res_term;
+}
+
+static void set_x264_defaults(AVDictionary **params, char* preset) {
+  // Override FFmpeg defaults from https://github.com/mirror/x264/blob/eaa68fad9e5d201d42fde51665f2d137ae96baf0/encoder/encoder.c#L674
+  av_dict_set(params, "me_range", "16", 0);
+  av_dict_set(params, "qdiff", "4", 0);
+  av_dict_set(params, "qmin", "0", 0);
+  av_dict_set(params, "qmax", "69", 0);
+  av_dict_set(params, "i_qfactor", "1.4", 0);
+  av_dict_set(params, "f_pb_factor", "1.3", 0);
+  
+  if (strcmp(preset, "ultrafast") == 0) 
+  {
+    av_dict_set(params, "partitions", "none", 0);
+    av_dict_set(params, "subq", "0", 0);
+  } 
+  else if (strcmp(preset, "superfast") == 0) 
+  {
+    av_dict_set(params, "partitions", "i8x8,i4x4", 0);
+    av_dict_set(params, "subq", "1", 0);
+  }
+  else if (strcmp(preset, "veryfast") == 0) 
+  {
+    av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
+    av_dict_set(params, "subq", "2", 0);
+  }
+  else if (strcmp(preset, "faster") == 0) 
+  {
+    av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
+    av_dict_set(params, "subq", "4", 0);
+  }
+  else if (strcmp(preset, "fast") == 0) 
+  {
+    av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
+    av_dict_set(params, "subq", "6", 0);
+  }
+  else if (strcmp(preset, "medium") == 0) 
+  {
+    av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
+    av_dict_set(params, "subq", "7", 0);
+  }
+  else if (strcmp(preset, "slow") == 0) 
+  {
+    av_dict_set(params, "partitions", "all", 0);
+    av_dict_set(params, "subq", "8", 0);
+  } 
+  else if (strcmp(preset, "slower") == 0) 
+  {
+    av_dict_set(params, "partitions", "all", 0);
+    av_dict_set(params, "subq", "9", 0);
+  } 
+  else if (strcmp(preset, "veryslow") == 0) 
+  {
+    av_dict_set(params, "partitions", "all", 0);
+    av_dict_set(params, "subq", "10", 0);
+  } 
+  else if (strcmp(preset, "placebo") == 0) 
+  {
+    av_dict_set(params, "partitions", "all", 0);
+    av_dict_set(params, "subq", "11", 0);
+  } 
 }
