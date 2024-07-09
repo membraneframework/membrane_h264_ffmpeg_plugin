@@ -134,6 +134,11 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
   av_dict_set_int(&params, "crf", crf, 0);
   av_dict_set_int(&params, "sc_threshold", sc_threshold, 0);
 
+  if (avcodec_open2(state->codec_ctx, codec, &params) < 0) {
+    res = create_result_error(env, "codec_open");
+    goto exit_create;
+  }
+
   res = create_result_ok(env, state);
 exit_create:
   unifex_release_state(env, state);
