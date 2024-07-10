@@ -20,7 +20,8 @@ defmodule Encoder.NativeTest do
                  Enc.encode(
                    frame,
                    Common.to_h264_time_base_truncated(seconds(timestamp)),
-                   false,
+                   _use_shm? = false,
+                   _keyframe_requested? = false,
                    ref
                  )
       end

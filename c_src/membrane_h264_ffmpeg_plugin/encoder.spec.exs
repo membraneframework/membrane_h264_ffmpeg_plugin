@@ -19,7 +19,7 @@ spec create(
 
 spec get_frame_size(state) :: {:ok :: label, frame_size :: int} | {:error :: label}
 
-spec encode(payload, pts :: int64, use_shm :: bool, state) ::
+spec encode(payload, pts :: int64, use_shm :: bool, keyframe_requested :: bool, state) ::
        {:ok :: label, dts_list :: [int64], pts_list :: [int64], [payload]}
        | {:error :: label, reason :: atom}
 

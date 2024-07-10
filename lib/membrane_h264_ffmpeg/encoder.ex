@@ -128,6 +128,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     state =
       opts
       |> Map.put(:encoder_ref, nil)
+      |> Map.put(:keyframe_requested?, false)
 
     {[], state}
   end
@@ -141,12 +142,13 @@ defmodule Membrane.H264.FFmpeg.Encoder do
            buffer.payload,
            pts,
            use_shm?,
+           state.keyframe_requested?,
            encoder_ref
          ) do
       {:ok, dts_list, pts_list, frames} ->
         bufs = wrap_frames(dts_list, pts_list, frames)
 
-        {bufs, state}
+        {bufs, %{state | keyframe_requested?: false}}
 
       {:error, reason} ->
         raise "Native encoder failed to encode the payload: #{inspect(reason)}"
@@ -192,6 +194,21 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     buffers = flush_encoder_if_exists(state)
     actions = buffers ++ [end_of_stream: :output]
     {actions, state}
+  end
+
+  @impl true
+  def handle_event(:input, event, _ctx, state) do
+    {[event: {:output, event}], state}
+  end
+
+  @impl true
+  def handle_event(:output, %Membrane.KeyframeRequestEvent{}, _ctx, state) do
+    {[], %{state | keyframe_requested?: true}}
+  end
+
+  @impl true
+  def handle_event(:output, event, _ctx, state) do
+    {[event: {:input, event}], state}
   end
 
   defp flush_encoder_if_exists(%{encoder_ref: nil}), do: []
