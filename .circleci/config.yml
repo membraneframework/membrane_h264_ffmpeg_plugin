@@ -15,7 +15,7 @@ workflows:
       - elixir/lint:
           filters:
             <<: *filters
-          cache_version: 2
+          cache-version: 2
       - elixir/hex_publish:
           requires:
             - elixir/build_test
@@ -28,4 +28,4 @@ workflows:
               ignore: /.*/
             tags:
               only: /v.*/
-          cache_version: 2
+          cache-version: 2
