@@ -30,7 +30,7 @@ static void set_x264_defaults(AVDictionary **params, char* preset) {
     av_dict_set(params, "subq", "1", 0);
   }
   else if (strcmp(preset, "veryfast") == 0) 
-  { 
+  {
     av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
     av_dict_set(params, "subq", "2", 0);
   }
