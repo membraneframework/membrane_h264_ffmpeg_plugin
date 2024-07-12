@@ -19,9 +19,6 @@ static void set_x264_defaults(AVDictionary **params, char* preset) {
   av_dict_set(params, "i_qfactor", "1.4", 0);
   av_dict_set(params, "f_pb_factor", "1.3", 0);
   
-  // av_dict_set(params, "threads", "1", 0);
-  // av_dict_set(params, "keyint_min", "7", 0);
-  // av_dict_set(params, "cmp", "sad", 0);
   if (strcmp(preset, "ultrafast") == 0) 
   {
     av_dict_set(params, "partitions", "none", 0);
