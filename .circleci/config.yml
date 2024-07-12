@@ -9,9 +9,11 @@ workflows:
           filters: &filters
             tags:
               only: /v.*/
+          cache-version: 2
       - elixir/test:
           filters:
             <<: *filters
+          cache-version: 2
       - elixir/lint:
           filters:
             <<: *filters
