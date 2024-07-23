@@ -9,12 +9,15 @@ workflows:
           filters: &filters
             tags:
               only: /v.*/
+          cache-version: 3
       - elixir/test:
           filters:
             <<: *filters
+          cache-version: 2
       - elixir/lint:
           filters:
             <<: *filters
+          cache-version: 2
       - elixir/hex_publish:
           requires:
             - elixir/build_test
@@ -27,3 +30,4 @@ workflows:
               ignore: /.*/
             tags:
               only: /v.*/
+          cache-version: 2
