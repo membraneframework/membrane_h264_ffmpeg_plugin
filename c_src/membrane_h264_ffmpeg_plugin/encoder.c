@@ -10,7 +10,7 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
 
 static void set_x264_defaults(AVDictionary **params, char* preset) {
   // Override FFmpeg defaults from https://github.com/mirror/x264/blob/eaa68fad9e5d201d42fde51665f2d137ae96baf0/encoder/encoder.c#L674
-  av_dict_set(params, "time_base", "1/1000000", 0);
+  av_dict_set(params, "time_base", "1/90000", 0);
   // av_dict_set(params, "qcomp", "0.6", 0);
   av_dict_set(params, "me_range", "16", 0);
   av_dict_set(params, "qdiff", "4", 0);
