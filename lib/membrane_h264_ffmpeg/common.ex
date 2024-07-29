@@ -1,11 +1,11 @@
 defmodule Membrane.H264.FFmpeg.Common do
   @moduledoc false
   use Numbers, overload_operators: true
-  @h264_time_base 90_000
+  @h264_time_base 1_000_000
   @no_pts -9_223_372_036_854_775_808
 
   @doc """
-  Converts time in membrane time base (1 [ns]) to h264 time base (1/90_000 [s])
+  Converts time in membrane time base (1 [ns]) to h264 time base (1/1_000_000 [s])
   """
   @spec to_h264_time_base_truncated(number | Numbers.t() | nil) :: integer
   def to_h264_time_base_truncated(nil), do: @no_pts
@@ -15,7 +15,7 @@ defmodule Membrane.H264.FFmpeg.Common do
   end
 
   @doc """
-  Converts time from h264 time base (1/90_000 [s]) to membrane time base (1 [ns])
+  Converts time from h264 time base (1/1_000_000 [s]) to membrane time base (1 [ns])
   """
   @spec to_membrane_time_base_truncated(number | Numbers.t()) :: integer | nil
   def to_membrane_time_base_truncated(@no_pts), do: nil
