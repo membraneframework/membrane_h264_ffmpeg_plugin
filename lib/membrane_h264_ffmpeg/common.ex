@@ -1,7 +1,7 @@
 defmodule Membrane.H264.FFmpeg.Common do
   @moduledoc false
   use Numbers, overload_operators: true
-  @h264_time_base 1_000_000
+  @h264_time_base 24
   @no_pts -9_223_372_036_854_775_808
 
   @doc """
