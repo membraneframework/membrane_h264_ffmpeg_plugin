@@ -121,7 +121,20 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 See [this page](https://en.wikibooks.org/wiki/MeGUI/x264_Settings#scenecut) for more info.
                 """,
                 default: @default_sc_threshold
+              ],
+              ffmpeg_options: [
+                spec: %{String.t() => String.t()},
+                description: """
+                A map with options that will be passed to the encoder.
+                """,
+                default: %{}
               ]
+
+  defmodule FFmpegOption do
+    @moduledoc false
+    @enforce_keys [:key, :value]
+    defstruct @enforce_keys
+  end
 
   @impl true
   def handle_init(_ctx, opts) do
@@ -165,6 +178,9 @@ defmodule Membrane.H264.FFmpeg.Encoder do
         frames_per_second when is_integer(frames_per_second) -> {1, frames_per_second}
       end
 
+    ffmpeg_options =
+      Enum.map(state.ffmpeg_options, fn {key, value} -> %FFmpegOption{key: key, value: value} end)
+
     with buffers <- flush_encoder_if_exists(state),
          {:ok, new_encoder_ref} <-
            Native.create(
@@ -179,7 +195,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              timebase_num,
              timebase_den,
              state.crf,
-             state.sc_threshold
+             state.sc_threshold,
+             ffmpeg_options
            ) do
       stream_format = create_new_stream_format(stream_format, state)
       actions = buffers ++ [stream_format: stream_format]
