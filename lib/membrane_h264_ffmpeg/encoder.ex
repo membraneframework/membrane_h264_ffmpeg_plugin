@@ -298,7 +298,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
     |> Enum.filter(fn param_name -> params_to_options_mapping[param_name] != nil end)
     |> Enum.each(fn param_name ->
       Logger.warning(
-        "The parameter: #{param_name} you provided in the `ffmpeg_params` map overwrites the setting from the modules option: #{params_to_options_mapping[param_name]}."
+        "The parameter: `#{param_name}` you provided in the `ffmpeg_params` map overwrites the setting from the modules option: `#{params_to_options_mapping[param_name]}`."
       )
     end)
   end
