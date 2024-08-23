@@ -3,7 +3,7 @@ module Membrane.H264.FFmpeg.Encoder.Native
 state_type "State"
 
 type(
-  ffmpeg_option :: %Membrane.H264.FFmpeg.Encoder.FFmpegOption{
+  ffmpeg_param :: %Membrane.H264.FFmpeg.Encoder.FFmpegParam{
     key: string,
     value: string
   }
@@ -22,7 +22,7 @@ spec create(
        timebase_den :: int,
        crf :: int,
        sc_threshold :: int,
-       ffmpeg_options :: [ffmpeg_option]
+       ffmpeg_params :: [ffmpeg_param]
      ) :: {:ok :: label, state} | {:error :: label, reason :: atom}
 
 spec get_frame_size(state) :: {:ok :: label, frame_size :: int} | {:error :: label}

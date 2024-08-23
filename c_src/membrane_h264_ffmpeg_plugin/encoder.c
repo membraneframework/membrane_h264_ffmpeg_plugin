@@ -55,8 +55,8 @@ static void set_x264_defaults(AVDictionary **params, char *preset) {
 UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
                    char *preset, char *tune, char *profile, int max_b_frames,
                    int gop_size, int timebase_num, int timebase_den, int crf,
-                   int sc_threshold, ffmpeg_option *ffmpeg_options,
-                   unsigned int ffmpeg_options_length) {
+                   int sc_threshold, ffmpeg_param *ffmpeg_params,
+                   unsigned int ffmpeg_params_length) {
   UNIFEX_TERM res;
   AVDictionary *params = NULL;
   State *state = unifex_alloc_state(env);
@@ -106,8 +106,8 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
 
   set_x264_defaults(&params, preset);
 
-  for (unsigned int i = 0; i < ffmpeg_options_length; i++) {
-    av_dict_set(&params, ffmpeg_options[i].key, ffmpeg_options[i].value, 0);
+  for (unsigned int i = 0; i < ffmpeg_params_length; i++) {
+    av_dict_set(&params, ffmpeg_params[i].key, ffmpeg_params[i].value, 0);
   }
 
   av_dict_set(&params, "preset", preset, 0);
