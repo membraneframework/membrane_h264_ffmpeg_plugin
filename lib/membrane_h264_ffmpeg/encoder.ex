@@ -130,8 +130,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
 
                 You can use options from: https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb
                 and https://ffmpeg.org/ffmpeg-codecs.html#Codec-Options
-                Remember not to overwrite options that are available as a separate module options
-                (like `sc_threshold` or `crf`).
+                Options available in the element options (`t:#{inspect(__MODULE__)}.t/0`), like `sc_threshold` or `crf`,
+                must be set there and not through `ffmpeg_params`.
                 """,
                 default: %{}
               ]
