@@ -12,6 +12,7 @@ defmodule Membrane.H264.FFmpeg.Encoder do
   Please check `t:t/0` for available options.
   """
   use Membrane.Filter
+  require Membrane.Logger, as: Logger
   alias __MODULE__.Native
   alias Membrane.Buffer
   alias Membrane.H264
@@ -121,10 +122,30 @@ defmodule Membrane.H264.FFmpeg.Encoder do
                 See [this page](https://en.wikibooks.org/wiki/MeGUI/x264_Settings#scenecut) for more info.
                 """,
                 default: @default_sc_threshold
+              ],
+              ffmpeg_params: [
+                spec: %{String.t() => String.t()},
+                description: """
+                A map with parameters that are passed to the encoder.
+
+                You can use options from: https://ffmpeg.org/ffmpeg-codecs.html#libx264_002c-libx264rgb
+                and https://ffmpeg.org/ffmpeg-codecs.html#Codec-Options
+                Options available in the element options (`t:#{inspect(__MODULE__)}.t/0`), like `sc_threshold` or `crf`,
+                must be set there and not through `ffmpeg_params`.
+                """,
+                default: %{}
               ]
+
+  defmodule FFmpegParam do
+    @moduledoc false
+    @enforce_keys [:key, :value]
+    defstruct @enforce_keys
+  end
 
   @impl true
   def handle_init(_ctx, opts) do
+    warn_if_ffmpeg_params_overwrite_module_options(opts.ffmpeg_params)
+
     state =
       opts
       |> Map.put(:encoder_ref, nil)
@@ -165,6 +186,9 @@ defmodule Membrane.H264.FFmpeg.Encoder do
         frames_per_second when is_integer(frames_per_second) -> {1, frames_per_second}
       end
 
+    ffmpeg_params =
+      Enum.map(state.ffmpeg_params, fn {key, value} -> %FFmpegParam{key: key, value: value} end)
+
     with buffers <- flush_encoder_if_exists(state),
          {:ok, new_encoder_ref} <-
            Native.create(
@@ -179,7 +203,8 @@ defmodule Membrane.H264.FFmpeg.Encoder do
              timebase_num,
              timebase_den,
              state.crf,
-             state.sc_threshold
+             state.sc_threshold,
+             ffmpeg_params
            ) do
       stream_format = create_new_stream_format(stream_format, state)
       actions = buffers ++ [stream_format: stream_format]
@@ -256,5 +281,25 @@ defmodule Membrane.H264.FFmpeg.Encoder do
       :high_444_intra -> :high444
       other -> other
     end
+  end
+
+  defp warn_if_ffmpeg_params_overwrite_module_options(ffmpeg_params) do
+    params_to_options_mapping = %{
+      "crf" => "crf",
+      "preset" => "preset",
+      "profile" => "profile",
+      "tune" => "tune",
+      "max_b_frames" => "max_b_frames",
+      "g" => "gop_size",
+      "sc_threshold" => "sc_threshold"
+    }
+
+    Map.keys(ffmpeg_params)
+    |> Enum.filter(fn param_name -> params_to_options_mapping[param_name] != nil end)
+    |> Enum.each(fn param_name ->
+      Logger.warning(
+        "The parameter: `#{param_name}` you provided in the `ffmpeg_params` map overwrites the setting from the modules option: `#{params_to_options_mapping[param_name]}`."
+      )
+    end)
   end
 end

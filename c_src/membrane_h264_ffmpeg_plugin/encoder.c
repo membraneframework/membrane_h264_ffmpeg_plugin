@@ -8,8 +8,9 @@ void handle_destroy_state(UnifexEnv *env, State *state) {
   }
 }
 
-static void set_x264_defaults(AVDictionary **params, char* preset) {
-  // Override FFmpeg defaults from https://github.com/mirror/x264/blob/eaa68fad9e5d201d42fde51665f2d137ae96baf0/encoder/encoder.c#L674
+static void set_x264_defaults(AVDictionary **params, char *preset) {
+  // Override FFmpeg defaults from
+  // https://github.com/mirror/x264/blob/eaa68fad9e5d201d42fde51665f2d137ae96baf0/encoder/encoder.c#L674
   av_dict_set(params, "qcomp", "0.6", 0);
   av_dict_set(params, "me_range", "16", 0);
   av_dict_set(params, "qdiff", "4", 0);
@@ -17,63 +18,45 @@ static void set_x264_defaults(AVDictionary **params, char* preset) {
   av_dict_set(params, "qmax", "69", 0);
   av_dict_set(params, "i_qfactor", "1.4", 0);
   av_dict_set(params, "f_pb_factor", "1.3", 0);
-  
-  if (strcmp(preset, "ultrafast") == 0) 
-  {
+
+  if (strcmp(preset, "ultrafast") == 0) {
     av_dict_set(params, "partitions", "none", 0);
     av_dict_set(params, "subq", "0", 0);
-  } 
-  else if (strcmp(preset, "superfast") == 0) 
-  {
+  } else if (strcmp(preset, "superfast") == 0) {
     av_dict_set(params, "partitions", "i8x8,i4x4", 0);
     av_dict_set(params, "subq", "1", 0);
-  }
-  else if (strcmp(preset, "veryfast") == 0) 
-  {
+  } else if (strcmp(preset, "veryfast") == 0) {
     av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
     av_dict_set(params, "subq", "2", 0);
-  }
-  else if (strcmp(preset, "faster") == 0) 
-  {
+  } else if (strcmp(preset, "faster") == 0) {
     av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
     av_dict_set(params, "subq", "4", 0);
-  }
-  else if (strcmp(preset, "fast") == 0) 
-  {
+  } else if (strcmp(preset, "fast") == 0) {
     av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
     av_dict_set(params, "subq", "6", 0);
-  }
-  else if (strcmp(preset, "medium") == 0) 
-  {
+  } else if (strcmp(preset, "medium") == 0) {
     av_dict_set(params, "partitions", "p8x8,b8x8,i8x8,i4x4", 0);
     av_dict_set(params, "subq", "7", 0);
-  }
-  else if (strcmp(preset, "slow") == 0) 
-  {
+  } else if (strcmp(preset, "slow") == 0) {
     av_dict_set(params, "partitions", "all", 0);
     av_dict_set(params, "subq", "8", 0);
-  } 
-  else if (strcmp(preset, "slower") == 0) 
-  {
+  } else if (strcmp(preset, "slower") == 0) {
     av_dict_set(params, "partitions", "all", 0);
     av_dict_set(params, "subq", "9", 0);
-  } 
-  else if (strcmp(preset, "veryslow") == 0) 
-  {
+  } else if (strcmp(preset, "veryslow") == 0) {
     av_dict_set(params, "partitions", "all", 0);
     av_dict_set(params, "subq", "10", 0);
-  } 
-  else if (strcmp(preset, "placebo") == 0) 
-  {
+  } else if (strcmp(preset, "placebo") == 0) {
     av_dict_set(params, "partitions", "all", 0);
     av_dict_set(params, "subq", "11", 0);
-  } 
+  }
 }
 
-
 UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
-                   char *preset, char *tune, char *profile, int max_b_frames, int gop_size,
-                   int timebase_num, int timebase_den, int crf, int sc_threshold) {
+                   char *preset, char *tune, char *profile, int max_b_frames,
+                   int gop_size, int timebase_num, int timebase_den, int crf,
+                   int sc_threshold, ffmpeg_param *ffmpeg_params,
+                   unsigned int ffmpeg_params_length) {
   UNIFEX_TERM res;
   AVDictionary *params = NULL;
   State *state = unifex_alloc_state(env);
@@ -113,7 +96,7 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
 
   state->codec_ctx->time_base.num = timebase_num;
   state->codec_ctx->time_base.den = timebase_den;
-  
+
   if (max_b_frames > -1) {
     state->codec_ctx->max_b_frames = max_b_frames;
   }
@@ -122,6 +105,10 @@ UNIFEX_TERM create(UnifexEnv *env, int width, int height, char *pix_fmt,
   }
 
   set_x264_defaults(&params, preset);
+
+  for (unsigned int i = 0; i < ffmpeg_params_length; i++) {
+    av_dict_set(&params, ffmpeg_params[i].key, ffmpeg_params[i].value, 0);
+  }
 
   av_dict_set(&params, "preset", preset, 0);
 
@@ -164,8 +151,7 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
                       int use_shm, State *state) {
   AVPacket *pkt = av_packet_alloc();
   UnifexPayload **frames = unifex_alloc((*max_frames) * sizeof(*frames));
-  int64_t *decoding_ts =
-      unifex_alloc((*max_frames) * sizeof(*decoding_ts));
+  int64_t *decoding_ts = unifex_alloc((*max_frames) * sizeof(*decoding_ts));
   int64_t *presentation_ts =
       unifex_alloc((*max_frames) * sizeof(*presentation_ts));
 
@@ -185,10 +171,10 @@ static int get_frames(UnifexEnv *env, AVFrame *frame,
     if (*frame_cnt >= (*max_frames)) {
       *max_frames *= 2;
       frames = unifex_realloc(frames, (*max_frames) * sizeof(*frames));
-      decoding_ts = unifex_realloc(decoding_ts,
-                                      (*max_frames) * sizeof(*decoding_ts));
-      presentation_ts = unifex_realloc(presentation_ts,
-                                      (*max_frames) * sizeof(*presentation_ts));
+      decoding_ts =
+          unifex_realloc(decoding_ts, (*max_frames) * sizeof(*decoding_ts));
+      presentation_ts = unifex_realloc(
+          presentation_ts, (*max_frames) * sizeof(*presentation_ts));
     }
 
     decoding_ts[*frame_cnt] = pkt->dts;
@@ -228,7 +214,7 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   frame->format = state->codec_ctx->pix_fmt;
   frame->width = state->codec_ctx->width;
   frame->height = state->codec_ctx->height;
-  if(keyframe_requested) {
+  if (keyframe_requested) {
     frame->pict_type = AV_PICTURE_TYPE_I;
   }
   av_image_fill_arrays(frame->data, frame->linesize, payload->data,
