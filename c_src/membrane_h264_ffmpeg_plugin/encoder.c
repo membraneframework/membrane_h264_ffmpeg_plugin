@@ -293,5 +293,8 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
   if (dts_list != NULL) {
     unifex_free(dts_list);
   }
+  if (pts_list != NULL) {
+    unifex_free(pts_list);
+  }
   return res_term;
 }
