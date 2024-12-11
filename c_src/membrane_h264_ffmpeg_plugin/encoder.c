@@ -253,6 +253,9 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   if (dts_list != NULL) {
     unifex_free(dts_list);
   }
+  if (pts_list != NULL) {
+    unifex_free(pts_list);
+  }
   av_frame_free(&frame);
   return res_term;
 }
@@ -289,6 +292,9 @@ UNIFEX_TERM flush(UnifexEnv *env, int use_shm, State *state) {
   }
   if (dts_list != NULL) {
     unifex_free(dts_list);
+  }
+  if (pts_list != NULL) {
+    unifex_free(pts_list);
   }
   return res_term;
 }
