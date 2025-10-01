@@ -14,7 +14,8 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         sources: ["decoder.c"],
         os_deps: [
           ffmpeg: [
-            {:precompiled, Membrane.PrecompiledDependencyProvider.get_dependency_url(:ffmpeg),
+            {:precompiled,
+             Membrane.PrecompiledDependencyProvider.get_dependency_url(:ffmpeg, version: "6.0.1"),
              ["libavcodec", "libavutil"]},
             {:pkg_config, ["libavcodec", "libavutil"]}
           ]
@@ -26,7 +27,8 @@ defmodule Membrane.H264.FFmpeg.BundlexProject do
         sources: ["encoder.c"],
         os_deps: [
           ffmpeg: [
-            {:precompiled, Membrane.PrecompiledDependencyProvider.get_dependency_url(:ffmpeg),
+            {:precompiled,
+             Membrane.PrecompiledDependencyProvider.get_dependency_url(:ffmpeg, version: "6.0.1"),
              ["libavcodec", "libavutil"]},
             {:pkg_config, ["libavcodec", "libavutil"]}
           ]
