@@ -46,9 +46,9 @@ defmodule Membrane.H264.FFmpeg.Plugin.MixProject do
       {:membrane_common_c, "~> 0.16.0"},
       {:membrane_h264_format, "~> 0.6.1"},
       {:membrane_raw_video_format, "~> 0.4.1"},
-      {:ex_doc, "~> 0.29", only: :dev, runtime: false},
-      {:credo, "~> 1.6", only: :dev, runtime: false},
-      {:dialyxir, "~> 1.1", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:credo, ">= 0.0.0", only: :dev, runtime: false},
+      {:dialyxir, ">= 0.0.0", only: :dev, runtime: false},
       {:membrane_raw_video_parser_plugin, "~> 0.12.2", only: :test},
       {:membrane_file_plugin, "~> 0.17.0", only: :test},
       {:membrane_h264_plugin, "~> 0.9.0", only: :test}
