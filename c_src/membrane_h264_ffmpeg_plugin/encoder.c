@@ -1,5 +1,7 @@
 #include "encoder.h"
 
+static const int FRAME_ALIGN = 1;
+
 void handle_destroy_state(UnifexEnv *env, State *state) {
   UNIFEX_UNUSED(env);
 
@@ -136,7 +138,8 @@ exit_create:
 UNIFEX_TERM get_frame_size(UnifexEnv *env, State *state) {
   int frame_size = av_image_get_buffer_size(state->codec_ctx->pix_fmt,
                                             state->codec_ctx->width,
-                                            state->codec_ctx->height, 1);
+                                            state->codec_ctx->height,
+                                            FRAME_ALIGN);
 
   if (frame_size < 0) {
     return get_frame_size_result_error(env);
@@ -210,6 +213,13 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   int64_t *dts_list = NULL;
   int64_t *pts_list = NULL;
 
+  int frame_size = av_image_get_buffer_size(
+      state->codec_ctx->pix_fmt, state->codec_ctx->width,
+      state->codec_ctx->height, FRAME_ALIGN);
+  if (frame_size < 0 || payload->size < (unsigned int)frame_size) {
+    return encode_result_error(env, "invalid_frame_size");
+  }
+
   AVFrame *frame = av_frame_alloc();
   frame->format = state->codec_ctx->pix_fmt;
   frame->width = state->codec_ctx->width;
@@ -218,7 +228,8 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
     frame->pict_type = AV_PICTURE_TYPE_I;
   }
   av_image_fill_arrays(frame->data, frame->linesize, payload->data,
-                       frame->format, frame->width, frame->height, 1);
+                       frame->format, frame->width, frame->height,
+                       FRAME_ALIGN);
 
   if (pts == AV_NOPTS_VALUE) {
     frame->pts = state->last_pts + 1;

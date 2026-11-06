@@ -34,4 +34,12 @@ defmodule Encoder.NativeTest do
 
     assert Enum.sort(pts_list) == expected_timestamps
   end
+
+  test "Reject frames shorter than the stream format" do
+    assert {:ok, ref} = Enc.create(320, 240, :I420, :fast, nil, :high, -1, -1, 1, 1, 23, 40, [])
+
+    for frame <- [<<>>, :binary.copy(<<0>>, 115_199)] do
+      assert {:error, :invalid_frame_size} == Enc.encode(frame, 0, false, false, ref)
+    end
+  end
 end
