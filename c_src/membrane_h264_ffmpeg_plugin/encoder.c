@@ -1,6 +1,5 @@
 #include "encoder.h"
 
-// Rows are packed with no padding, so a payload is exactly width * height * bpp per plane.
 static const int FRAME_ALIGN = 1;
 
 void handle_destroy_state(UnifexEnv *env, State *state) {
@@ -214,8 +213,6 @@ UNIFEX_TERM encode(UnifexEnv *env, UnifexPayload *payload, int64_t pts,
   int64_t *dts_list = NULL;
   int64_t *pts_list = NULL;
 
-  // The frame is read straight from the payload with the dimensions and pixel format
-  // the encoder was created with, so a shorter payload would be read out of bounds.
   int frame_size = av_image_get_buffer_size(
       state->codec_ctx->pix_fmt, state->codec_ctx->width,
       state->codec_ctx->height, FRAME_ALIGN);
